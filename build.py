@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+"""Assemble src/* + data/*.json into dist/index.html (one self-contained page)."""
+import base64, json, pathlib, sys
+
+ROOT = pathlib.Path(__file__).parent
+SRC, DATA, DIST = ROOT / "src", ROOT / "data", ROOT / "dist"
+
+
+def read(p):
+    return (SRC / p).read_text(encoding="utf8")
+
+
+def load_json(name, default):
+    try:
+        return json.loads((DATA / name).read_text(encoding="utf8"))
+    except FileNotFoundError:
+        return default
+
+
+def build():
+    logo = "data:image/png;base64," + base64.b64encode((SRC / "logo.png").read_bytes()).decode()
+    auto = load_json("places_auto.json", [])
+    closed = load_json("closed.json", [])
+    data = read("data.js").replace(
+        "var AUTO_PLACES = [], CLOSED = []; /*AUTO_DATA*/",
+        "var AUTO_PLACES = %s, CLOSED = %s;" % (json.dumps(auto, ensure_ascii=False), json.dumps(closed, ensure_ascii=False)),
+    )
+    assert "AUTO_DATA" not in data
+    js = "\n".join([data, read("map.js"), read("app1.js"), read("app2.js")])
+    html = f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Bite Rate Stockholm</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Bite Rate: a map of Stockholm's best fika, dates, vegan food and viral spots. Say GO or SKIP.">
+<link rel="icon" href="{logo}">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Courier+Prime:wght@400;700&display=swap">
+<style>
+{read("style.css")}
+</style></head><body>
+{read("body.html").replace("{{LOGO}}", logo)}
+<script>(function(){{"use strict";
+{js}
+}})();</script>
+</body></html>
+"""
+    DIST.mkdir(exist_ok=True)
+    (DIST / "index.html").write_text(html, encoding="utf8")
+    (DIST / ".nojekyll").write_text("")
+    return DIST / "index.html", len(auto)
+
+
+if __name__ == "__main__":
+    out, n = build()
+    print(f"built {out} ({out.stat().st_size // 1024} KB, {n} auto places)")

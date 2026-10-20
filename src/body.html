@@ -1,0 +1,114 @@
+<div class="app" id="app">
+  <div class="map" id="map" role="application" aria-label="Map of central Stockholm. Drag to move, scroll or pinch to zoom, or use the buttons.">
+    <svg id="geo" aria-hidden="true">
+      <defs>
+        <pattern id="bld" width="22" height="22" patternUnits="userSpaceOnUse">
+          <rect x="1" y="1" width="9" height="6" fill="var(--block)"/><rect x="12" y="2" width="8" height="9" fill="var(--block)"/>
+          <rect x="2" y="10" width="7" height="10" fill="var(--block)"/><rect x="12" y="13" width="9" height="6" fill="var(--block)"/>
+        </pattern>
+      </defs>
+      <g id="world"></g>
+    </svg>
+    <div id="pins"></div>
+  </div>
+  <div class="attrib">Schematic map · pins approximate · Maps link is the truth</div>
+
+  <header class="topbar" id="topbar">
+    <a class="brand" href="#" id="brand" aria-label="Bite Rate Stockholm, reset the map"><img class="logo" src="{{LOGO}}" alt="" width="46" height="46"><span class="bt"><b>BITE RATE</b><small>STOCKHOLM</small></span></a>
+    <div class="pillbar">
+      <button type="button" id="themeBtn" aria-label="Switch light or dark theme" title="Theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>
+      </button>
+      <button type="button" id="filterBtn" aria-label="Open the picks and filters" title="Filters">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square"><path d="M4 5h16l-6 8v6l-4-2v-4z"/></svg>
+      </button>
+    </div>
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/></svg>
+      <label class="sr" for="q">Search the map by name or area</label>
+      <input id="q" type="search" placeholder="Search the map…" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="results" aria-autocomplete="list">
+      <div class="results" id="results" role="listbox" hidden></div>
+    </div>
+    <button class="btn pink" type="button" id="openSuggest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M3 11l18-8-8 18-2-8z"/></svg>Suggest a place</button>
+    <button class="btn cyan" type="button" id="openHow">How it works</button>
+  </header>
+
+  <div class="mapctl" id="mapctl">
+    <button class="btn sqbtn" type="button" id="zin" aria-label="Zoom in">+</button>
+    <button class="btn sqbtn" type="button" id="zout" aria-label="Zoom out">−</button>
+    <button class="btn sqbtn" type="button" id="zfit" aria-label="Show all of central Stockholm" title="Recentre"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="square"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
+  </div>
+
+  <aside class="panel" id="panel" aria-label="The picks">
+    <div class="panel-top">
+      <button class="grip" id="grip" type="button" aria-label="Resize the picks sheet"></button>
+      <div class="panel-head">
+        <h2 class="h-lg">The Picks</h2>
+        <button class="btn sqbtn paper" type="button" id="collapse" aria-label="Hide the picks panel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M9 5l7 7-7 7"/></svg></button>
+      </div>
+      <div class="tabs" role="group" aria-label="Show">
+        <button class="tab" type="button" data-tab="all" aria-pressed="true">All</button>
+        <button class="tab" type="button" data-tab="new" aria-pressed="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square"><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/></svg>New</button>
+        <button class="tab" type="button" data-tab="saved" aria-pressed="false">Saved <span id="savedN">0</span></button>
+      </div>
+      <ul class="cuts" id="cuts" aria-label="Filter by cut"></ul>
+      <button class="sugtoggle" type="button" id="sugBtn" aria-pressed="false"><span class="qdot" aria-hidden="true">?</span><span>Show suggestions · <span id="sugN">0</span></span><span class="switch" aria-hidden="true"></span></button>
+    </div>
+    <div class="listbar">
+      <span class="code" id="count" role="status" aria-live="polite">0 places</span>
+      <label class="code" style="display:flex;align-items:center;gap:6px">Sort
+        <select id="sort"><option value="top">Top</option><option value="az">A–Ö</option><option value="area">Area</option></select>
+      </label>
+    </div>
+    <ul class="list" id="list"></ul>
+  </aside>
+  <button class="opener" type="button" id="opener">The Picks</button>
+
+  <section class="detail" id="detail" hidden aria-live="polite"></section>
+
+  <div class="scrim" id="suggestModal" hidden>
+    <form class="modal" id="form" role="dialog" aria-modal="true" aria-labelledby="sgT" novalidate>
+      <button class="closer btn" type="button" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19"/></svg></button>
+      <h2 class="h-md" id="sgT">Suggest a place</h2>
+      <p class="note">Know a good place that's not on the map? Make your case. When it reaches <b>+5 net votes</b> we go and check it out.</p>
+      <div class="fld"><label for="fName">Place name</label><input id="fName" type="text" maxlength="70" autocomplete="off" placeholder="e.g. Café Pascal"><div class="err" id="eName" hidden></div></div>
+      <div class="dupe" id="dupe" hidden><div id="dupeT"></div><button type="button" class="btn" id="dupeBack">Back it with GO</button></div>
+      <div class="two">
+        <div class="fld"><label for="fArea">Area</label><select id="fArea"></select></div>
+        <div class="fld"><label for="fLink">Google Maps link (optional)</label><input id="fLink" type="url" inputmode="url" placeholder="Paste a Share link" autocomplete="off"><div class="err" id="eLink" hidden></div></div>
+      </div>
+      <a class="btn paper" id="findMaps" target="_blank" rel="noopener" href="#" hidden style="width:fit-content">Find it on Google Maps ↗</a>
+      <div class="fld"><span class="lab">Which cuts? (pick up to 3)</span><div class="cutpick" id="cutPick"></div><div class="err" id="eCut" hidden></div></div>
+      <div class="fld"><label for="fWhy">Why it belongs</label><textarea id="fWhy" maxlength="280" placeholder="Go for the cardamom bun. Skip if you hate queues on Sundays."></textarea><div class="hint"><span>20 to 280 characters. Say what to order.</span><span id="cnt">0/280</span></div><div class="err" id="eWhy" hidden></div></div>
+      <div class="two">
+        <div class="fld"><label for="fGet">Get (optional)</label><input id="fGet" type="text" maxlength="80" placeholder="What to order"></div>
+        <div class="fld"><label for="fSkip">Skip if (optional)</label><input id="fSkip" type="text" maxlength="80" placeholder="Who it's not for"></div>
+      </div>
+      <label class="chk"><input type="checkbox" id="fOwn"><span>I own or work at this place (it will be labelled)</span></label>
+      <button class="btn pink" type="submit" id="submitBtn" style="min-height:48px;width:100%">Suggest it</button>
+      <p class="note" id="storeNote"></p>
+    </form>
+  </div>
+
+  <div class="scrim" id="howModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="hwT">
+      <button class="closer btn" type="button" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19"/></svg></button>
+      <h2 class="h-md" id="hwT">How Bite Rate works</h2>
+      <ol class="steps">
+        <li><span><b>Pick a cut.</b> Date night, first date, a catch-up with friends, fika, wine. Tap one to filter the map and the list.</span></li>
+        <li><span><b>Say GO or SKIP.</b> One vote per place. Tap again to take it back.</span></li>
+        <li><span><b>Suggest what we missed.</b> Make your case in a line or two. A pink ? pin is a suggestion in the queue.</span></li>
+        <li><span><b>At +5 net votes</b> we go and check it out, then put it on the map.</span></li>
+        <li><span><b>Open in Google Maps</b> before you go. Hours and menus change.</span></li>
+      </ol>
+      <div id="importBox" hidden style="margin-top:14px;border:2px dashed currentColor;padding:12px;display:grid;gap:8px">
+        <b class="code">OWNER · IMPORT AGENT FILE</b>
+        <span class="note" style="margin:0">Choose the <code>approved_places.json</code> your review agent wrote. Each place is added to the map for everyone.</span>
+        <input type="file" id="importFile" accept="application/json,.json">
+        <span class="note" id="importMsg" style="margin:0" role="status"></span>
+      </div>
+      <p class="note">The starter picks are an editor's list, not a ranking, and votes start at zero. The map is a hand-traced sketch, so pins are approximate; the Google Maps link is the exact location.</p>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>

@@ -1,0 +1,97 @@
+name: "Bite Rate - agent, test, deploy"
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 5 * * 1"      # every Monday 05:17 UTC: run the review agent, then redeploy
+  workflow_dispatch:
+
+concurrency:
+  group: biterate
+  cancel-in-progress: false
+
+jobs:
+  agent:
+    # Only on the schedule or a manual run. Never on pushes (the agent's own commit would loop).
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
+      OLLAMA_MODEL: llama3.2:3b
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Agent unit tests
+        run: python3 agent/test_agent.py
+      - name: Cache Ollama models
+        if: env.GOOGLE_PLACES_API_KEY != ''
+        uses: actions/cache@v4
+        with:
+          path: ~/.ollama
+          key: ollama-${{ env.OLLAMA_MODEL }}
+      - name: Install and start Ollama
+        if: env.GOOGLE_PLACES_API_KEY != ''
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          (ollama serve > ollama.log 2>&1 &)
+          for i in $(seq 1 30); do curl -s localhost:11434 >/dev/null && break; sleep 2; done
+          ollama pull "$OLLAMA_MODEL"
+      - name: Run the review agent
+        run: |
+          FLAGS="--discover"
+          # once a month (first week), also check for permanently closed places
+          if [ "$(date +%d)" -le 7 ]; then FLAGS="$FLAGS --recheck"; fi
+          python3 agent/bite_rate_agent.py $FLAGS
+      - name: Validate data before committing
+        run: python3 tests/test_site.py
+      - name: Commit data changes
+        run: |
+          git config user.name "biterate-agent"
+          git config user.email "biterate-agent@users.noreply.github.com"
+          git add data
+          git diff --cached --quiet || git commit -m "agent: weekly update $(date -u +%F)"
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+  deploy:
+    needs: [agent]
+    # Run after the agent, or on its own for pushes. A skipped or failed agent must not block the deploy.
+    if: ${{ always() && (needs.agent.result == 'success' || needs.agent.result == 'skipped' || needs.agent.result == 'failure') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main              # pick up the agent's commit
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test tools
+        run: |
+          pip install playwright
+          playwright install --with-deps chromium
+      - name: Tests
+        run: |
+          python3 tests/test_site.py
+          python3 agent/test_agent.py
+      - name: Build
+        run: python3 build.py
+      - name: Browser smoke test
+        run: python3 tests/smoke.py
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deployment
+        uses: actions/deploy-pages@v4
