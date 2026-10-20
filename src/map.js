@@ -225,7 +225,8 @@ function decorateMap(map) {
 }
 function syncMapTheme() {
   var map = vectorMap || vectorPending;
-  if (map) map.setStyle(mapStyleUrl());
+  // Rebuild the style so style.load restores our custom building layer.
+  if (map) map.setStyle(mapStyleUrl(), { diff: false });
 }
 function syncVectorView(zoomIn) {
   if (!vectorMap) return;
