@@ -202,7 +202,11 @@ function mapStyleUrl() {
 function decorateMap(map) {
   var layers = map.getStyle().layers || [], dark = effectiveTheme() === "dark";
   var building = layers.find(function (l) { return l["source-layer"] === "building"; });
-  var labels = layers.find(function (l) { return l.type === "symbol" && l.layout && l.layout["text-field"]; });
+  // Some styles interleave early water labels with later building fills.
+  // Put the 3D layer above all ground geometry so flat fills cannot cover it.
+  var lastGround = -1;
+  layers.forEach(function (l, i) { if (l.type !== "symbol") lastGround = i; });
+  var labels = layers.slice(lastGround + 1).find(function (l) { return l.type === "symbol"; });
   // Keep the same retro palette while retaining real roads and neighbourhoods.
   layers.forEach(function (l) {
     if (l.type === "background") map.setPaintProperty(l.id, "background-color", dark ? "#211f27" : "#f3eedb");
