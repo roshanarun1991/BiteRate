@@ -26,8 +26,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Agent unit tests
-        run: python3 agent/test_agent.py
+      - name: Agent and worker unit tests
+        run: |
+          python3 agent/test_agent.py
+          node worker/test_worker.mjs
       - name: Cache Ollama models
         if: env.GOOGLE_PLACES_API_KEY != ''
         uses: actions/cache@v4
@@ -41,6 +43,10 @@ jobs:
           (ollama serve > ollama.log 2>&1 &)
           for i in $(seq 1 30); do curl -s localhost:11434 >/dev/null && break; sleep 2; done
           ollama pull "$OLLAMA_MODEL"
+      - name: Pull votes and suggestions from the server
+        env:
+          BITERATE_ADMIN_TOKEN: ${{ secrets.BITERATE_ADMIN_TOKEN }}
+        run: python3 agent/sync_server.py
       - name: Run the review agent
         run: |
           FLAGS="--discover"
@@ -85,10 +91,14 @@ jobs:
         run: |
           python3 tests/test_site.py
           python3 agent/test_agent.py
+          node worker/test_worker.mjs
       - name: Build
         run: python3 build.py
-      - name: Browser smoke test
-        run: python3 tests/smoke.py
+      - name: Browser smoke tests
+        run: |
+          python3 tests/smoke.py
+          python3 tests/smoke_shared.py
+          python3 build.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

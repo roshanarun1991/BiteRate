@@ -12,7 +12,7 @@ Everything runs in GitHub Actions (`.github/workflows/site.yml`). Nothing needs 
 
 | When | What happens |
 |---|---|
-| Every Monday | The **review agent** searches Google Places for one new topic (16 topics rotate), reads each new place's reviews with a small local model (Ollama, `llama3.2:3b`, installed on the runner), and adds places that pass. |
+| Every Monday | If the shared-votes server is on, tallies are copied into `data/votes_snapshot.json` and popular suggestions become candidates. Then the **review agent** searches Google Places for one new topic (16 topics rotate), reads each new place's reviews with a small local model (Ollama, `llama3.2:3b`, installed on the runner), and adds places that pass. |
 | First week of each month | The agent also looks up every place and hides ones that closed permanently (`data/closed.json`). |
 | After each agent run, and on every push | Tests run, the site is built (`build.py`), a headless-browser smoke test opens it on desktop and phone, then it deploys to GitHub Pages. |
 
@@ -28,19 +28,40 @@ The agent writes `data/state.json` on every run, so the repo always has fresh ac
 
 Without the key the site still deploys and works; the agent just skips its checks.
 
-## What the live site can and can't do
+## Shared votes (optional, free)
 
-- Votes (GO/SKIP), saved places and suggestions are stored **on the visitor's device** (localStorage). A static GitHub Pages site has no database, so votes are not shared between people.
+GitHub Pages can't take writes from visitors (anyone could steal a token from the page). So votes go through a tiny Cloudflare Worker (`worker/`, free tier), and the weekly job copies everything into this repo.
+
+- Visitors vote GO/SKIP with no account. Each browser gets a random device id. One vote per device per place.
+- The page reads everyone's votes live and sends yours. If the server is down, voting still works on the device.
+- Weekly, `agent/sync_server.py` saves all tallies to `data/votes_snapshot.json` (so they live in GitHub too) and sends any suggestion with **+5 net votes** to the review agent as a candidate.
+- Anonymous means a determined person can fake votes with new browsers. There are per-IP and per-device limits, nothing stronger. Treat tallies as a crowd signal, not an election.
+
+**Setup (10 minutes, needs a free Cloudflare account):**
+```
+cd worker
+npx wrangler kv namespace create VOTES        # copy the id it prints into wrangler.toml
+# edit wrangler.toml: set ALLOWED_ORIGIN to your Pages address
+npx wrangler secret put ADMIN_TOKEN           # pick a long random string
+npx wrangler deploy                           # prints https://biterate-votes.<you>.workers.dev
+```
+Then put that URL in `data/config.json` (`{"votes_api": "https://biterate-votes.<you>.workers.dev"}`), add the same ADMIN_TOKEN as repo secret `BITERATE_ADMIN_TOKEN`, and push. The site rebuilds with shared votes on.
+
+Without the server the site still works; votes and suggestions stay on each visitor's device.
+
+## What else to know
+
 - The map is a hand-drawn schematic. Pins are approximate. The Google Maps link is the exact location.
 - The hand-picked places in `src/data.js` are an editor's list, not a ranking.
 
 ## Layout
 
 ```
-src/            page source: data.js (cuts + places), map.js, app1.js, app2.js, style.css, body.html, logo.png
-data/           places_auto.json (agent output), closed.json, state.json, candidates.json
+src/            page source: data.js (cuts + places), map.js, app1.js, shared.js, app2.js, style.css, body.html, logo.png
+worker/         Cloudflare Worker for shared votes + its tests
+data/           places_auto.json (agent output), closed.json, state.json, candidates.json, config.json, votes_snapshot.json
 agent/          bite_rate_agent.py + tests (standard library only)
-tests/          test_site.py (data + build checks), smoke.py (browser)
+tests/          test_site.py (data + build checks), smoke.py + smoke_shared.py (browser)
 build.py        src + data -> dist/index.html
 ```
 

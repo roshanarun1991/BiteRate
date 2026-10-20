@@ -25,8 +25,11 @@ def build():
         "var AUTO_PLACES = [], CLOSED = []; /*AUTO_DATA*/",
         "var AUTO_PLACES = %s, CLOSED = %s;" % (json.dumps(auto, ensure_ascii=False), json.dumps(closed, ensure_ascii=False)),
     )
-    assert "AUTO_DATA" not in data
-    js = "\n".join([data, read("map.js"), read("app1.js"), read("app2.js")])
+    api = (load_json("config.json", {}).get("votes_api") or "").rstrip("/")
+    assert not api or api.startswith("https://"), "votes_api must be an https URL"
+    data = data.replace('var SRV_API = ""; /*SRV_API*/', "var SRV_API = %s;" % json.dumps(api))
+    assert "AUTO_DATA" not in data and "/*SRV_API*/" not in data
+    js = "\n".join([data, read("map.js"), read("app1.js"), read("shared.js"), read("app2.js")])
     html = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <title>Bite Rate Stockholm</title>

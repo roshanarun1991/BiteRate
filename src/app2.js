@@ -18,6 +18,7 @@ function setVote(pid, val) {
       toast("Couldn't save to the shared list. Kept on this device."); renderAll(); updateNote();
     });
   } else lsSet("kolla.votes", S.myLocal);
+  srvVote(pid, next);
   if (next) toast(next === "go" ? "Go counted" : "Skip counted");
 }
 function toggleSave(pid) {
@@ -90,15 +91,17 @@ function submitForm(ev) {
   function done(msg, pid) { bumpN(); resetForm(); btn.disabled = false; btn.textContent = "Suggest it"; closeModal(); S.showSug = true; S.tab = "all"; S.cut = null; renderAll(); if (pid) selectPin(pid); toast(msg); }
   function local() { var p = areaPos("l" + rec.ts, rec.area), it = { pid: "l_" + rec.ts, kind: "s", name: rec.name, cuts: rec.cuts, area: rec.area, why: rec.why, get: rec.get, skip: rec.skip, link: rec.link, owner: rec.owner, by: rec.by, addedAt: rec.ts, order: 1000, ver: 0, lng: p[0], lat: p[1], local: true };
     S.localSugg.unshift(it); lsSet("kolla.sugg", S.localSugg); done("Added on this device. It's a pink ? pin on the map.", it.pid); }
+  if (SRV_API && !S.dbWrite) { srvSuggest(rec, done, local); return; }
   if (S.db && S.dbWrite) S.db.collection("suggestions").add(rec).then(function (ref) { done("Thanks! It's in the queue. Share the page to get votes.", "s_" + ref.id); }).catch(function () { S.dbWrite = false; local(); updateNote(); });
   else local();
 }
-function updateNote() { $("storeNote").textContent = S.dbWrite ? "Suggestions and votes are shared with everyone who opens this page." : "Votes and suggestions are saved on this device only."; }
+function updateNote() { $("storeNote").textContent = (SRV_API && !S.dbWrite) ? "Votes and suggestions are shared with everyone who visits Bite Rate. No account needed." : S.dbWrite ? "Suggestions and votes are shared with everyone who opens this page." : "Votes and suggestions are saved on this device only."; }
 
 /* ===== SHARED STORE ===== */
-function mapSuggDoc(d) {
-  var x = d.data() || {}, area = AREAS.indexOf(x.area) >= 0 ? x.area : "Norrmalm", cuts = (Array.isArray(x.cuts) ? x.cuts : []).filter(function (c) { return CUT_BY[c]; }).slice(0, 3); if (!cuts.length) cuts = ["fika"];
-  var pid = "s_" + d.id, p = areaPos(pid, area);
+function mapSuggDoc(d) { return mapSuggObj(d.id, d.data() || {}); }
+function mapSuggObj(id, x) {
+  var area = AREAS.indexOf(x.area) >= 0 ? x.area : "Norrmalm", cuts = (Array.isArray(x.cuts) ? x.cuts : []).filter(function (c) { return CUT_BY[c]; }).slice(0, 3); if (!cuts.length) cuts = ["fika"];
+  var pid = "s_" + id, p = areaPos(pid, area);
   return { pid: pid, kind: "s", name: String(x.name || "").slice(0, 70), cuts: cuts, area: area, why: String(x.why || "").slice(0, 280), get: String(x.get || "").slice(0, 80), skip: String(x.skip || "").slice(0, 80), link: cleanMapsUrl(x.link) || "", owner: !!x.owner, by: x.by || "", addedAt: Number(x.ts) || 0, order: 1000, ver: 0, lng: p[0], lat: p[1] };
 }
 function mapAgentDoc(d) { return mapAgentObj(d.id, d.data() || {}); }
@@ -236,6 +239,7 @@ function init() {
 
   /* deep link */
   var m = /#p=([^&]+)/.exec(location.hash || ""); if (m) { var pid = decodeURIComponent(m[1]); setTimeout(function () { selectPin(pid); }, 60); }
+  srvInit();
   initStore();
 }
 init();

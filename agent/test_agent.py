@@ -11,3 +11,10 @@ def boom(*x): raise RuntimeError("ollama down")
 print(a.evaluate(good,set(),boom)[1]); assert a.evaluate(good,set(),boom)[0] is None
 assert a.evaluate(dict(good,businessStatus="CLOSED_PERMANENTLY"),set(),llm)[0] is None
 print("ALL OK")
+
+import sync_server as ss
+ex = {"suggestions": [{"name": "Café Hit", "go": 7, "skip": 1}, {"name": "Café Meh", "go": 4, "skip": 0}, {"name": "Café Hit", "go": 9, "skip": 0}]}
+c = ss.promote(ex, [], set())
+assert [x["name"] for x in c] == ["Café Hit"] and c[0]["net"] == 6, c
+assert ss.promote(ex, c, set()) == c, "idempotent"
+print("SYNC OK")

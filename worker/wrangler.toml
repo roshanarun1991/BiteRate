@@ -1,0 +1,10 @@
+name = "biterate-votes"
+main = "index.js"
+compatibility_date = "2025-01-01"
+
+[[kv_namespaces]]
+binding = "VOTES"
+id = "PASTE_KV_ID_HERE"     # from: npx wrangler kv namespace create VOTES
+
+[vars]
+ALLOWED_ORIGIN = "https://roshanarun1991.github.io"   # your GitHub Pages origin

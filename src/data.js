@@ -1,6 +1,7 @@
 /* ===== DATA: cuts, places, geography ===== */
 /* build.py replaces the next line with data from data/places_auto.json and data/closed.json */
 var AUTO_PLACES = [], CLOSED = []; /*AUTO_DATA*/
+var SRV_API = ""; /*SRV_API*/
 var CUTS = [
   { id: "og",        label: "The OGs",        col: "#FFD928", ic: "star" },
   { id: "fika",      label: "Fika Break",     col: "#FF9A3C", ic: "bun" },
