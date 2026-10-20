@@ -1,39 +1,136 @@
-"""Opens the built page in headless Chromium and exercises the main flows. Needs: pip install playwright && playwright install chromium"""
-import pathlib, sys
-from playwright.sync_api import sync_playwright
+"""Responsive UI regressions with the external map blocked to exercise fallback.
+Real 3D buildings and style reloads are also checked on the deployed site.
+Needs: pip install playwright && playwright install chromium
+"""
+import pathlib
+import sys
+from playwright.sync_api import sync_playwright, expect
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 URL = (ROOT / "dist/index.html").as_uri()
 errors, fails = [], []
+checks = 0
 
 
-def check(name, cond):
-    print(("PASS " if cond else "FAIL ") + name)
-    if not cond:
+def check(name, condition):
+    global checks
+    checks += 1
+    print(("PASS " if condition else "FAIL ") + name)
+    if not condition:
         fails.append(name)
 
 
 with sync_playwright() as p:
-    b = p.chromium.launch()
-    for label, vp in (("desktop", {"width": 1440, "height": 900}), ("phone", {"width": 390, "height": 844})):
-        pg = b.new_page(viewport=vp)
+    browser = p.chromium.launch()
+    for width, height in ((1440, 900), (1280, 720), (900, 700), (390, 844), (320, 568)):
+        label = f"{width}x{height}"
+        context = browser.new_context(viewport={"width": width, "height": height}, reduced_motion="reduce", color_scheme="light")
+        context.add_init_script("Object.defineProperty(navigator,'share',{value: async data => {window.sharedPlace = data;}})")
+        pg = context.new_page()
         pg.on("pageerror", lambda e: errors.append(str(e)))
+        pg.route("https://unpkg.com/**", lambda route: route.abort())
         pg.goto(URL)
-        pg.wait_for_timeout(600)
+        expect(pg.locator("#mapNotice")).to_contain_text("Street map unavailable")
+        initial_count = pg.locator("#list .card").count()
         check(label + ": title", pg.title() == "Bite Rate Stockholm")
-        check(label + ": pins drawn", pg.locator(".pin").count() >= 50)
-        check(label + ": 15 cuts", pg.locator(".cut").count() == 15)
-        check(label + ": no horizontal overflow", pg.evaluate("document.documentElement.scrollWidth <= window.innerWidth"))
-        if label == "phone":
-            pg.click("#grip")  # open the bottom sheet
-            pg.wait_for_timeout(500)
-        for cid in ("date", "first", "friends", "vegan", "viral"):
+        check(label + ": curated collection present", initial_count >= 50)
+        check(label + ": text-only brand", pg.locator("#brand img").count() == 0)
+        check(label + ": no horizontal overflow", pg.evaluate("document.documentElement.scrollWidth <= innerWidth"))
+        check(label + ": toolbar inside viewport", pg.locator("#topbar").evaluate(
+            "(el) => [...el.children].every(c => {const r=c.getBoundingClientRect();return r.left>=0 && r.right<=Math.min(innerWidth,el.getBoundingClientRect().right+1)})"))
+        check(label + ": Suggest accessible", pg.locator("#openSuggest").is_visible())
+        check(label + ": Help accessible", pg.locator("#openHow").is_visible())
+        check(label + ": honest fallback", pg.locator("#viewBtn").is_disabled() and pg.locator("#mapRetry").is_visible())
+        pg.click("#themeBtn")
+        expect(pg.locator("html")).to_have_attribute("data-theme", "dark")
+        pg.reload()
+        expect(pg.locator("html")).to_have_attribute("data-theme", "dark")
+        check(label + ": night setting survives reload", True)
+        pg.click("#themeBtn")
+        expect(pg.locator("html")).to_have_attribute("data-theme", "light")
+        check(label + ": day mode", True)
+        if width < 900:
+            pg.locator("#grip").focus()
+            pg.keyboard.press("Enter")
+            expect(pg.locator("#panel")).not_to_have_class("panel peek")
+        for cid in ("og", "fika", "coffee", "breakfast", "brunch", "vegan", "viral", "date", "first", "friends", "aw", "beer", "fancy", "wine", "sweet"):
             pg.click(f'.cut[data-cut="{cid}"]')
-            n = pg.locator("#list .card").count()
-            check(f"{label}: cut {cid} has places", n > 0)
+            check(f"{label}: {cid} filter has picks", pg.locator("#list .card").count() > 0)
             pg.click(f'.cut[data-cut="{cid}"]')
-        pg.close()
-    b.close()
-check("no page errors", not errors)
-print(errors)
-sys.exit(1 if fails else 0)
+        pg.fill("#q", "Florentine")
+        pg.keyboard.press("Enter")
+        expect(pg.locator("#detail h2")).to_have_text("Florentine")
+        check(label + ": search opens detail", True)
+        check(label + ": attribution visible with detail", pg.locator(".attrib").is_visible())
+        check(label + ": venue link", pg.locator("#detail a").filter(has_text="Venue website").get_attribute("href").startswith("https://"))
+        pg.click('#detail [data-act="share"]')
+        check(label + ": share links to Bite Rate place", pg.evaluate("window.sharedPlace.url.endsWith('#p=p_florentine')"))
+        pg.click("#detail .vb.go")
+        expect(pg.locator("#detail .vb.go")).to_have_attribute("aria-pressed", "true")
+        pg.click("#detail .vb.go")
+        expect(pg.locator("#detail .vb.go")).to_have_attribute("aria-pressed", "false")
+        check(label + ": vote and undo", True)
+        pg.click('#detail [data-act="save"]')
+        pg.click('#detail [data-act="close"]')
+        pg.click('[data-tab="saved"]')
+        check(label + ": saved filter", pg.locator("#list .card").count() == 1)
+        pg.click("#list [data-save]")
+        check(label + ": removing saved item updates list", pg.locator("#list .card").count() == 0)
+        pg.fill("#q", "TAK")
+        pg.keyboard.press("Enter")
+        expect(pg.locator("#detail h2")).to_have_text("TAK")
+        check(label + ": search escapes empty saved filter", pg.locator('[data-tab="all"]').get_attribute("aria-pressed") == "true")
+        pg.click('#detail [data-act="close"]')
+        pg.click('#cuts [data-cut="date"]')
+        pg.click("#clearFilters")
+        check(label + ": clear filters restores collection", pg.locator("#list .card").count() == initial_count)
+        pg.select_option("#sort", "az")
+        check(label + ": alphabetical sort", pg.locator("#list .name").first.text_content() == "Adam/Albin")
+        pg.click("#openHow")
+        expect(pg.locator("#howModal")).to_be_visible()
+        pg.keyboard.press("Escape")
+        check(label + ": help closes and restores focus", pg.locator("#openHow").evaluate("(e)=>e===document.activeElement"))
+        pg.click("#openSuggest")
+        pg.click("#submitBtn")
+        check(label + ": validation focuses missing name", pg.locator("#fName").evaluate("(e)=>e===document.activeElement"))
+        pg.fill("#fName", "Florentine")
+        expect(pg.locator("#dupe")).to_be_visible()
+        check(label + ": duplicate suggestion detected", True)
+        pg.fill("#fName", "QA Local Cafe")
+        pg.click('#cutPick [data-c="fika"]')
+        pg.fill("#fWhy", "Fresh buns and good coffee for a relaxed morning break.")
+        pg.fill("#fLink", "https://example.com")
+        pg.click("#submitBtn")
+        expect(pg.locator("#eLink")).to_be_visible()
+        check(label + ": rejects unrelated maps links", True)
+        pg.fill("#fLink", "")
+        pg.click("#submitBtn")
+        expect(pg.locator("#detail h2")).to_have_text("QA Local Cafe")
+        check(label + ": local suggestion saved", "device" in pg.locator("#toast").text_content())
+        pg.reload()
+        expect(pg.locator("#detail h2")).to_have_text("QA Local Cafe")
+        check(label + ": suggestion deep link survives reload", True)
+        pg.goto(URL + "#p=%E0%A4%A")
+        pg.reload()
+        expect(pg.locator("#brand")).to_be_visible()
+        context.close()
+    context = browser.new_context(color_scheme="dark")
+    pg = context.new_page()
+    pg.on("pageerror", lambda e: errors.append(str(e)))
+    pg.route("https://unpkg.com/**", lambda route: route.abort())
+    pg.goto(URL)
+    expect(pg.locator("html")).to_have_attribute("data-theme", "dark")
+    check("system dark theme applied on first visit", True)
+    pg.emulate_media(color_scheme="light")
+    expect(pg.locator("html")).to_have_attribute("data-theme", "light")
+    check("system theme changes followed before manual choice", True)
+    pg.click("#themeBtn")
+    pg.emulate_media(color_scheme="dark")
+    pg.emulate_media(color_scheme="light")
+    expect(pg.locator("html")).to_have_attribute("data-theme", "dark")
+    check("manual theme choice takes priority over system", True)
+    context.close()
+    browser.close()
+check("no JavaScript errors (including malformed deep links)", not errors)
+print(f"{checks} checks, {len(fails)} failures; errors: {errors}")
+sys.exit(1 if fails or errors else 0)
