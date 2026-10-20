@@ -3,8 +3,10 @@
     <svg id="geo" aria-hidden="true">
       <defs>
         <pattern id="bld" width="22" height="22" patternUnits="userSpaceOnUse">
-          <rect x="1" y="1" width="9" height="6" fill="var(--block)"/><rect x="12" y="2" width="8" height="9" fill="var(--block)"/>
-          <rect x="2" y="10" width="7" height="10" fill="var(--block)"/><rect x="12" y="13" width="9" height="6" fill="var(--block)"/>
+          <path fill="var(--building-top)" d="M1 3 4 1h7L8 3z"/><path fill="var(--building-front)" d="M1 3h7v6H1z"/><path fill="var(--building-side)" d="m8 3 3-2v6L8 9z"/>
+          <path fill="var(--building-top)" d="m12 5 3-2h7l-3 2z"/><path fill="var(--building-front)" d="M12 5h7v8h-7z"/><path fill="var(--building-side)" d="m19 5 3-2v8l-3 2z"/>
+          <path fill="var(--building-top)" d="m2 14 3-2h6l-3 2z"/><path fill="var(--building-front)" d="M2 14h6v7H2z"/><path fill="var(--building-side)" d="m8 14 3-2v7l-3 2z"/>
+          <path fill="var(--building-top)" d="m12 17 3-2h7l-3 2z"/><path fill="var(--building-front)" d="M12 17h7v4h-7z"/><path fill="var(--building-side)" d="m19 17 3-2v4l-3 2z"/>
         </pattern>
       </defs>
       <g id="world"></g>
@@ -16,7 +18,7 @@
   <header class="topbar" id="topbar">
     <a class="brand" href="#" id="brand" aria-label="Bite Rate Stockholm, reset the map"><img class="logo" src="{{LOGO}}" alt="" width="46" height="46"><span class="bt"><b>BITE RATE</b><small>STOCKHOLM</small></span></a>
     <div class="pillbar">
-      <button type="button" id="themeBtn" aria-label="Switch light or dark theme" title="Theme">
+      <button type="button" id="themeBtn" aria-label="Switch to night mode" title="Switch to night mode" aria-pressed="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>
       </button>
       <button type="button" id="filterBtn" aria-label="Open the picks and filters" title="Filters">
@@ -34,6 +36,7 @@
   </header>
 
   <div class="mapctl" id="mapctl">
+    <button class="btn sqbtn mapmode" type="button" id="viewBtn" aria-label="Switch to flat 2D map" aria-pressed="true" title="Raised 3D map">3D</button>
     <button class="btn sqbtn" type="button" id="zin" aria-label="Zoom in">+</button>
     <button class="btn sqbtn" type="button" id="zout" aria-label="Zoom out">−</button>
     <button class="btn sqbtn" type="button" id="zfit" aria-label="Show all of central Stockholm" title="Recentre"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="square"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>

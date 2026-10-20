@@ -3,6 +3,7 @@
   --pink: #FF5F91; --yellow: #FFD928; --cyan: #5DD9E7; --blue: #48A9F8; --green: #7FD06D;
   --canvas: #F3EAD5; --surface: #FFFAF0; --raised: #F6F1E7; --ink: #161713; --muted: #636157; --line: #D8D1BE;
   --water: #A5E4EC; --land: #F3EAD5; --park: #BFE3B0; --block: rgba(22,23,19,.10); --road: #FFFAF0; --road-edge: rgba(22,23,19,.28);
+  --building-top: rgba(22,23,19,.10); --building-front: rgba(22,23,19,.15); --building-side: rgba(22,23,19,.25);
   --panel: #5DD9E7; --label: #161713; --hot: #FF2267; --focus: rgb(0,150,255);
   --f-head: "Anton", Impact, "Arial Narrow Bold", "Haettenschweiler", sans-serif;
   --f-code: "Courier Prime", "Courier New", Courier, monospace;
@@ -14,11 +15,13 @@
 :root[data-theme="dark"] {
   --canvas: #130C0F; --surface: #211B1D; --raised: #2D2729; --ink: #FFF9FB; --muted: #A59FA1; --line: #393335;
   --water: #0F3A4A; --land: #1B1517; --park: #1E3A2A; --block: rgba(255,249,251,.07); --road: #3A3033; --road-edge: rgba(255,249,251,.14);
+  --building-top: rgba(255,249,251,.08); --building-front: rgba(255,249,251,.12); --building-side: rgba(255,249,251,.18);
   --panel: #12323A; --label: #FFF9FB; --hot: #FF5F91; --sh-2: 2px 2px 0 #000; --sh-3: 3px 3px 0 #000; --sh-5: 5px 5px 0 #000; color-scheme: dark;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --canvas: #130C0F; --surface: #211B1D; --raised: #2D2729; --ink: #FFF9FB; --muted: #A59FA1; --line: #393335;
   --water: #0F3A4A; --land: #1B1517; --park: #1E3A2A; --block: rgba(255,249,251,.07); --road: #3A3033; --road-edge: rgba(255,249,251,.14);
+  --building-top: rgba(255,249,251,.08); --building-front: rgba(255,249,251,.12); --building-side: rgba(255,249,251,.18);
   --panel: #12323A; --label: #FFF9FB; --hot: #FF5F91; --sh-2: 2px 2px 0 #000; --sh-3: 3px 3px 0 #000; --sh-5: 5px 5px 0 #000; color-scheme: dark; } }
 * { box-sizing: border-box; border-radius: 0; }
 [hidden] { display: none !important; }
@@ -49,6 +52,10 @@ a { color: inherit; }
 .map { position: absolute; inset: 0; z-index: 0; isolation: isolate; background: var(--water); touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; overflow: hidden; }
 .map.drag { cursor: grabbing; }
 #geo { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.map.is-3d #geo, .map.is-3d #pins { transform: perspective(1500px) rotateX(37deg) scale(1.18); transform-origin: 50% 50%; transition: transform .32s ease; }
+.map:not(.is-3d) #geo, .map:not(.is-3d) #pins { transform: none; }
+.mapmode { font-family: var(--f-code); font-size: 12px !important; font-weight: 700; background: var(--pink) !important; color: #161713 !important; }
+.mapmode[aria-pressed="false"] { background: var(--surface) !important; color: var(--ink) !important; }
 .land { fill: var(--land); stroke: var(--ink); stroke-width: 2.5; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 .blocks { fill: url(#bld); stroke: none; }
 .park { fill: var(--park); stroke: var(--ink); stroke-width: 1.2; vector-effect: non-scaling-stroke; opacity: .95; }
@@ -233,6 +240,7 @@ a { color: inherit; }
   .pillbar { margin-left: auto; } .pillbar button { width: 44px; min-height: 44px; }
   .mapctl { right: 12px; bottom: calc(var(--sheet-h, 164px) + 12px); }
   .mapctl .btn { min-height: 44px; width: 44px; }
+  .map.is-3d #geo, .map.is-3d #pins { transform: perspective(1200px) rotateX(25deg) scale(1.12); }
   .attrib { display: none; }
   .panel { top: auto; left: 0; right: 0; width: 100%; height: var(--sheet-vh, 56dvh); max-height: 92dvh; border-left: 0; border-top: 3px solid var(--ink); box-shadow: 0 -5px 0 var(--ink); transition: height .22s cubic-bezier(.2,.8,.2,1), transform .22s; }
   .panel.closed { transform: translateY(100%); }
@@ -259,4 +267,5 @@ a { color: inherit; }
   .two { grid-template-columns: 1fr; }
 }
 @media (min-width: 900px) and (max-width: 1180px) { :root { --panel-w: 380px; } .cut { font-size: 10px; } }
+@media (prefers-reduced-motion: reduce) { .map.is-3d #geo, .map.is-3d #pins { transition: none; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

@@ -1,5 +1,21 @@
 /* ===== VOTING, SAVING, SHARING ===== */
 var writeChain = Promise.resolve();
+function effectiveTheme() { return document.documentElement.getAttribute("data-theme") || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"); }
+function syncThemeButton() {
+  var dark = effectiveTheme() === "dark", b = $("themeBtn");
+  b.setAttribute("aria-pressed", String(dark));
+  b.setAttribute("aria-label", dark ? "Night mode on. Switch to day mode" : "Day mode on. Switch to night mode");
+  b.title = dark ? "Switch to day mode" : "Switch to night mode";
+  b.innerHTML = dark
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square"><path d="M20.2 15.1A8.5 8.5 0 0 1 8.9 3.8 8.6 8.6 0 1 0 20.2 15.1z"/></svg>';
+}
+function syncMapViewButton() {
+  var b = $("viewBtn"), tilted = $("map").classList.contains("is-3d");
+  b.setAttribute("aria-pressed", String(tilted));
+  b.setAttribute("aria-label", tilted ? "Switch to flat 2D map" : "Switch to raised 3D map");
+  b.title = tilted ? "Raised 3D map · click for flat view" : "Flat 2D map · click for raised view";
+}
 function refreshOne(pid, focusSel) {
   var it = itemByPid(pid); if (!it) return; it._t = tally(pid);
   var li = $("list").querySelector('.card[data-pid="' + pid + '"]');
@@ -160,10 +176,13 @@ function init() {
   S.autoStatic = AUTO_PLACES.map(function (x) { return mapAgentObj(x.id, x); }).filter(function (s) { return s && s.name; });
   var imf = $("importFile"); if (imf) imf.addEventListener("change", function () { if (imf.files[0]) importAgentFile(imf.files[0]); });
   S.myLocal = lsGet("kolla.votes", {}); S.localSugg = lsGet("kolla.sugg", []); S.saved = lsGet("kolla.saved", {});
-  var th = lsGet("kolla.theme", null); if (th) document.documentElement.setAttribute("data-theme", th);
+  var th = lsGet("kolla.theme", null); if (th === "light" || th === "dark") document.documentElement.setAttribute("data-theme", th);
+  syncThemeButton();
   $("fArea").innerHTML = AREAS.map(function (a) { return '<option value="' + esc(a) + '">' + esc(a) + "</option>"; }).join("");
   renderCutPick();
   initMap(framePins);
+  mapEl.classList.toggle("is-3d", lsGet("kolla.map3d", true) !== false);
+  syncMapViewButton();
   renderAll(); setSheet("peek", true);
   requestAnimationFrame(function () { setSheet("peek", true); flyTo(defaultView(), true); });
   updateNote();
@@ -176,7 +195,10 @@ function init() {
   pinsEl.addEventListener("click", function (e) { var b = e.target.closest("[data-pid]"); if (b) selectPin(b.getAttribute("data-pid")); });
 
   /* theme + panel */
-  $("themeBtn").addEventListener("click", function () { var r = document.documentElement, cur = r.getAttribute("data-theme"), dark = cur ? cur === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches, n = dark ? "light" : "dark"; r.setAttribute("data-theme", n); lsSet("kolla.theme", n); });
+  $("themeBtn").addEventListener("click", function () { var r = document.documentElement, n = effectiveTheme() === "dark" ? "light" : "dark"; r.setAttribute("data-theme", n); lsSet("kolla.theme", n); syncThemeButton(); });
+  $("viewBtn").addEventListener("click", function () { mapEl.classList.toggle("is-3d"); lsSet("kolla.map3d", mapEl.classList.contains("is-3d")); syncMapViewButton(); });
+  var scheme = window.matchMedia("(prefers-color-scheme: dark)");
+  if (scheme.addEventListener) scheme.addEventListener("change", function () { if (!lsGet("kolla.theme", null)) syncThemeButton(); });
   function togglePanel(open) { var p = $("panel"), closed = !open; p.classList.toggle("closed", closed); $("app").classList.toggle("panel-closed", closed); setTimeout(function () { schedule(); }, 240); }
   $("collapse").addEventListener("click", function () { togglePanel(false); });
   $("opener").addEventListener("click", function () { togglePanel(true); });
