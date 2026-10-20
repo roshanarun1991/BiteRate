@@ -20,6 +20,14 @@ Everything runs in GitHub Actions (`.github/workflows/site.yml`). Nothing needs 
 
 The agent writes `data/state.json` on every run, so the repo always has fresh activity. GitHub pauses scheduled workflows in repos that go quiet for 60 days; this prevents that.
 
+## Move to another Windows computer
+
+Download [Start-BiteRate.bat](https://github.com/roshanarun1991/BiteRate/raw/refs/heads/main/Start-BiteRate.bat) and double-click it. It installs missing tools, downloads the latest project, and provides a menu for Cloudflare setup, checks and continuation notes. You approve account sign-ins yourself.
+
+Read [CONTINUE_PROJECT.md](CONTINUE_PROJECT.md) for the handoff, free-only setup and remaining work. The website and scheduled GitHub jobs continue while your computer is off.
+
+Installer checks: `Start-BiteRate.bat --self-test` and `powershell -NoProfile -ExecutionPolicy Bypass -File Test-Transfer.ps1`. These offline checks do not install software or contact cloud accounts.
+
 ## One-time setup (5 minutes)
 
 1. **Pages:** repo Settings → Pages → Source: **GitHub Actions**.
