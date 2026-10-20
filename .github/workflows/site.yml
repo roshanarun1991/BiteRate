@@ -64,13 +64,18 @@ jobs:
           git pull --rebase origin main
           git push origin HEAD:main
 
-  build:
+  deploy:
     needs: [agent]
-    # Run after the agent, or on its own for pushes. A skipped or failed agent must not block the build.
+    # Run after the agent, or on its own for pushes. A skipped or failed agent must not block the deploy.
     if: ${{ always() && (needs.agent.result == 'success' || needs.agent.result == 'skipped' || needs.agent.result == 'failure') }}
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -94,13 +99,9 @@ jobs:
           python3 tests/smoke.py
           python3 tests/smoke_shared.py
           python3 build.py
-      - name: Publish the built site (GitHub Pages serves index.html from the main branch root)
-        run: |
-          cp dist/index.html index.html
-          touch .nojekyll
-          git config user.name "biterate-bot"
-          git config user.email "biterate-bot@users.noreply.github.com"
-          git add index.html .nojekyll
-          git diff --cached --quiet || git commit -m "build: update site $(date -u +%F)"
-          git pull --rebase origin main
-          git push origin HEAD:main
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deployment
+        uses: actions/deploy-pages@v4
