@@ -14,7 +14,7 @@ Everything runs in GitHub Actions (`.github/workflows/site.yml`). Nothing needs 
 |---|---|
 | Every Monday | If the shared-votes server is on, tallies are copied into `data/votes_snapshot.json` and popular suggestions become candidates. Then the **review agent** searches Google Places for one new topic (16 topics rotate), reads each new place's reviews with a small local model (Ollama, `llama3.2:3b`, installed on the runner), and adds places that pass. |
 | First week of each month | The agent also looks up every place and hides ones that closed permanently (`data/closed.json`). |
-| After each agent run, and on every push | Tests run, the site is built (`build.py`), a headless-browser smoke test opens it on desktop and phone, then the built page is committed as `index.html` at the repo root, which GitHub Pages serves. |
+| After each agent run, and on every push | Tests run, the site is built (`build.py`), a headless-browser smoke test opens it on desktop and phone, then it deploys to GitHub Pages. |
 
 **A place is added only if** Google shows more than 5 reviews, the model judges at least 70% of the review texts it reads as positive, the model assigns it to a cut, and it is not already on the site. At most 5 places per run. Google returns up to 5 review texts per place, so the model reads those.
 
@@ -22,7 +22,7 @@ The agent writes `data/state.json` on every run, so the repo always has fresh ac
 
 ## One-time setup (5 minutes)
 
-1. **Pages:** repo Settings → Pages → Source: **Deploy from a branch**, branch `main`, folder `/ (root)`.
+1. **Pages:** repo Settings → Pages → Source: **GitHub Actions**.
 2. **API key:** create a Google Cloud key with **Places API (New)** enabled. Add a **budget alert and a daily quota cap** in Google Cloud so the bill can never surprise you. Then Settings → Secrets and variables → Actions → New secret `GOOGLE_PLACES_API_KEY`.
 3. Actions tab → "Bite Rate - agent, test, deploy" → Run workflow.
 
