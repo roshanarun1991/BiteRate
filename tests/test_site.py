@@ -69,17 +69,18 @@ for (const p of recent) {
   assert.equal(new URL(p.source).protocol,'https:');
   assert(p.addedAt && p.addr);
 }
-let dark=false, tilted=true, calls=[], added;
+let dark=false, tilted=true, calls=[], added, before;
 ctx.effectiveTheme=()=>dark?'dark':'light';
 ctx.mapEl={classList:{contains:()=>tilted}};
 const layers=[
  {id:'background',type:'background'},
+ {id:'water-label',type:'symbol',layout:{'text-field':'name'}},
  {id:'building',type:'fill',source:'openmaptiles','source-layer':'building'},
  {id:'labels',type:'symbol',layout:{'text-field':'name'}}
 ];
 const map={
  getStyle:()=>({layers}), getLayer:()=>added,
- addLayer:layer=>{added=layer;},setPaintProperty:(...x)=>calls.push(x),
+ addLayer:(layer,id)=>{added=layer;before=id;},setPaintProperty:(...x)=>calls.push(x),
  setLayoutProperty:(...x)=>calls.push(x),setStyle:(...x)=>calls.push(x),
  getZoom:()=>12,easeTo:options=>calls.push(options)
 };
@@ -87,6 +88,7 @@ ctx.vectorMap=map;
 ctx.decorateMap(map);
 assert.equal(added.type,'fill-extrusion');
 assert.equal(added.source,'openmaptiles');
+assert.equal(before,'labels');
 assert.equal(added.paint['fill-extrusion-color'],'#c7c4b7');
 dark=true; added=null; calls=[];
 ctx.syncMapTheme();
