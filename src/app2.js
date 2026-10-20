@@ -188,7 +188,8 @@ function init() {
   S.autoStatic = AUTO_PLACES.map(function (x) { return mapAgentObj(x.id, x); }).filter(function (s) { return s && s.name; });
   var imf = $("importFile"); if (imf) imf.addEventListener("change", function () { if (imf.files[0]) importAgentFile(imf.files[0]); });
   S.myLocal = lsGet("kolla.votes", {}); S.localSugg = lsGet("kolla.sugg", []); S.saved = lsGet("kolla.saved", {});
-  var th = lsGet("kolla.theme", null); if (th === "light" || th === "dark") document.documentElement.setAttribute("data-theme", th);
+  var th = lsGet("kolla.theme", null);
+  document.documentElement.setAttribute("data-theme", th === "light" || th === "dark" ? th : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
   syncThemeButton();
   $("fArea").innerHTML = AREAS.map(function (a) { return '<option value="' + esc(a) + '">' + esc(a) + "</option>"; }).join("");
   renderCutPick();
@@ -209,7 +210,7 @@ function init() {
   $("themeBtn").addEventListener("click", function () { var r = document.documentElement, n = effectiveTheme() === "dark" ? "light" : "dark"; r.setAttribute("data-theme", n); lsSet("kolla.theme", n); syncThemeButton(); syncMapTheme(); });
   $("viewBtn").addEventListener("click", function () { if (!vectorMap) return; mapEl.classList.toggle("is-3d"); lsSet("kolla.map3d", mapEl.classList.contains("is-3d")); syncMapViewButton(); syncVectorView(true); });
   var scheme = window.matchMedia("(prefers-color-scheme: dark)");
-  if (scheme.addEventListener) scheme.addEventListener("change", function () { if (!lsGet("kolla.theme", null)) { syncThemeButton(); syncMapTheme(); } });
+  if (scheme.addEventListener) scheme.addEventListener("change", function () { if (!lsGet("kolla.theme", null)) { document.documentElement.setAttribute("data-theme", scheme.matches ? "dark" : "light"); syncThemeButton(); syncMapTheme(); } });
   function togglePanel(open) { var p = $("panel"), closed = !open; p.classList.toggle("closed", closed); $("app").classList.toggle("panel-closed", closed); setTimeout(function () { schedule(); }, 240); }
   $("collapse").addEventListener("click", function () { togglePanel(false); });
   $("opener").addEventListener("click", function () { togglePanel(true); });
