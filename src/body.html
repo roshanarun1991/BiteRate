@@ -20,7 +20,7 @@
   <div class="mapnotice" id="mapNotice" role="status" hidden><span id="mapNoticeText"></span> <button type="button" id="mapRetry" hidden>Retry map</button></div>
 
   <header class="topbar" id="topbar">
-    <a class="brand" href="#" id="brand" aria-label="Bite Rate Stockholm, reset the map"><img class="logo" src="{{LOGO}}" alt="" width="46" height="46"><span class="bt"><b>BITE RATE</b><small>STOCKHOLM</small></span></a>
+    <a class="brand" href="#" id="brand" aria-label="Bite Rate Stockholm, reset the map"><span class="bt"><b>BITE RATE</b><small>STOCKHOLM</small></span></a>
     <div class="pillbar">
       <button type="button" id="themeBtn" aria-label="Switch to night mode" title="Switch to night mode" aria-pressed="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>
@@ -35,15 +35,15 @@
       <input id="q" type="search" placeholder="Search the map…" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="results" aria-autocomplete="list">
       <div class="results" id="results" role="listbox" hidden></div>
     </div>
-    <button class="btn pink" type="button" id="openSuggest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M3 11l18-8-8 18-2-8z"/></svg>Suggest a place</button>
-    <button class="btn cyan" type="button" id="openHow">How it works</button>
+    <button class="btn pink" type="button" id="openSuggest" aria-label="Suggest a place" title="Suggest a place"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" aria-hidden="true"><path d="M3 11l18-8-8 18-2-8z"/></svg><span class="action-label">Suggest a place</span></button>
+    <button class="btn cyan" type="button" id="openHow" aria-label="How it works" title="How it works"><span class="action-label">How it works</span><span class="compact-label" aria-hidden="true">?</span></button>
   </header>
 
   <div class="mapctl" id="mapctl">
     <button class="btn sqbtn mapmode" type="button" id="viewBtn" aria-label="Switch to flat 2D map" aria-pressed="true" title="Raised 3D map">3D</button>
     <button class="btn sqbtn" type="button" id="zin" aria-label="Zoom in">+</button>
     <button class="btn sqbtn" type="button" id="zout" aria-label="Zoom out">−</button>
-    <button class="btn sqbtn" type="button" id="zfit" aria-label="Show all of central Stockholm" title="Recentre"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="square"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
+    <button class="btn sqbtn" type="button" id="zfit" aria-label="Fit the visible places on the map" title="Fit these places"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="square"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
   </div>
 
   <aside class="panel" id="panel" aria-label="The picks">
@@ -62,7 +62,7 @@
       <button class="sugtoggle" type="button" id="sugBtn" aria-pressed="false"><span class="qdot" aria-hidden="true">?</span><span>Show suggestions · <span id="sugN">0</span></span><span class="switch" aria-hidden="true"></span></button>
     </div>
     <div class="listbar">
-      <span class="code" id="count" role="status" aria-live="polite">0 places</span>
+      <span class="code" id="count" role="status" aria-live="polite">0 places</span><button class="clear-filter" id="clearFilters" type="button" hidden>Clear filters</button>
       <label class="code" style="display:flex;align-items:center;gap:6px">Sort
         <select id="sort"><option value="top">Top</option><option value="az">A–Ö</option><option value="area">Area</option></select>
       </label>
@@ -77,7 +77,7 @@
     <form class="modal" id="form" role="dialog" aria-modal="true" aria-labelledby="sgT" novalidate>
       <button class="closer btn" type="button" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19"/></svg></button>
       <h2 class="h-md" id="sgT">Suggest a place</h2>
-      <p class="note">Know a good place that's not on the map? Make your case. When it reaches <b>+5 net votes</b> we go and check it out.</p>
+      <p class="note">Know a good place that's not on the map? Make your case. Shared suggestions become eligible for review at <b>+5 net votes</b>.</p>
       <div class="fld"><label for="fName">Place name</label><input id="fName" type="text" maxlength="70" autocomplete="off" placeholder="e.g. Café Pascal"><div class="err" id="eName" hidden></div></div>
       <div class="dupe" id="dupe" hidden><div id="dupeT"></div><button type="button" class="btn" id="dupeBack">Back it with GO</button></div>
       <div class="two">
@@ -105,7 +105,7 @@
         <li><span><b>Pick a cut.</b> Date night, first date, a catch-up with friends, fika, wine. Tap one to filter the map and the list.</span></li>
         <li><span><b>Say GO or SKIP.</b> One vote per place. Tap again to take it back.</span></li>
         <li><span><b>Suggest what we missed.</b> Make your case in a line or two. A pink ? pin is a suggestion in the queue.</span></li>
-        <li><span><b>At +5 net votes</b> we go and check it out, then put it on the map.</span></li>
+        <li><span><b>At +5 net votes</b> shared suggestions become eligible for review. When shared voting is unavailable, votes and suggestions stay on this device.</span></li>
         <li><span><b>Open in Google Maps</b> before you go. Hours and menus change.</span></li>
       </ol>
       <div id="importBox" hidden style="margin-top:14px;border:2px dashed currentColor;padding:12px;display:grid;gap:8px">
@@ -115,6 +115,7 @@
         <span class="note" id="importMsg" style="margin:0" role="status"></span>
       </div>
       <p class="note">The starter picks are an editor's list, and votes start at zero. Explore real streets and 3D buildings with OpenFreeMap. Drag to move, scroll to zoom, or right-drag to rotate. Tap 2D for a flat view. Building heights depend on available map data; place pins may be approximate. Use the Google Maps link to confirm the entrance and opening hours.</p>
+      <p class="note">Viral Food mixes social-media favourites and photogenic food picks; it is an editorial category, not a live popularity chart. “New” means recently added to Bite Rate. New picks include a venue website link for menus and booking.</p>
     </div>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

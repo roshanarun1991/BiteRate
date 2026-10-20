@@ -91,7 +91,8 @@ a { color: inherit; }
 .topbar { position: absolute; z-index: 20; left: 12px; right: calc(var(--panel-w) + 12px); top: 12px; display: flex; gap: 10px; align-items: stretch; pointer-events: none; transition: right .2s; }
 .topbar > * { pointer-events: auto; }
 .brand { background: #161713; color: var(--yellow); border: 3px solid #161713; text-decoration: none; box-shadow: 3px 3px 0 var(--pink); display: flex; align-items: center; gap: 0; padding: 0; }
-.brand .logo { width: 46px; height: 46px; background: #FFFAF0; display: block; border-right: 3px solid #161713; image-rendering: auto; }
+.brand { flex: none; }
+.compact-label { display: none; }
 .brand .bt { display: grid; padding: 5px 12px 4px; }
 .brand b { font-family: var(--f-head); font-weight: 400; font-size: 26px; line-height: 1; letter-spacing: 1px; text-transform: uppercase; }
 .brand small { display: block; font-family: var(--f-code); font-size: 9px; letter-spacing: 2.4px; color: var(--cyan); margin-top: 2px; text-align: center; }
@@ -140,7 +141,10 @@ a { color: inherit; }
 .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: var(--swb, #161713); transition: transform .15s; }
 .sugtoggle[aria-pressed="true"] .switch { background: var(--pink); }
 .sugtoggle[aria-pressed="true"] .switch::after { background: #161713; }
-.app.has-detail .attrib { display: none; }
+.attrib { z-index: 35; }
+.app.has-detail .attrib { bottom: 0; }
+.clear-filter { border: 0; background: transparent; color: inherit; text-decoration: underline; font-size: 11px; padding: 8px 2px; }
+.listbar #count { flex: 1; }
 .sugtoggle[aria-pressed="true"] .switch::after { transform: translateX(22px); }
 .listbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 16px 6px; flex: none; color: #161713; }
 :root[data-theme="dark"] .listbar { color: var(--ink); }
@@ -237,15 +241,17 @@ a { color: inherit; }
 /* phone: full-screen map + bottom sheet */
 @media (max-width: 899px) {
   :root { --panel-w: 100vw; --top-h: 128px; }
-  .topbar { right: 12px; left: 12px; flex-wrap: wrap; gap: 8px; }
-  .topbar .btn { display: none; }
-  .brand .logo { width: 40px; height: 40px; } .brand b { font-size: 21px; } .brand .bt { padding: 4px 9px 3px; } .brand small { font-size: 8px; letter-spacing: 1.8px; }
+  .topbar { right: 8px; left: 8px; flex-wrap: wrap; gap: 6px; }
+  .topbar .btn { width: 44px; min-height: 44px; padding: 0; }
+  .topbar .action-label { display: none; }
+  .topbar .compact-label { display: inline; font-size: 22px; }
+  .brand b { font-size: 18px; } .brand .bt { padding: 6px; } .brand small { font-size: 8px; letter-spacing: 1.8px; }
   .search { flex-basis: 100%; order: 3; } .search input { min-height: 46px; }
   .pillbar { margin-left: auto; } .pillbar button { width: 44px; min-height: 44px; }
   .mapctl { right: 12px; bottom: calc(var(--sheet-h, 164px) + 12px); }
   .mapctl .btn { min-height: 44px; width: 44px; }
   .attrib { display: block; font-size: 8px; left: 4px; bottom: calc(var(--sheet-h, 164px) + 4px); max-width: calc(100vw - 65px); }
-  .app.has-detail .attrib { bottom: auto; top: 125px; }
+  .app.has-detail .attrib { bottom: auto; top: 118px; }
   .mapnotice { bottom: calc(var(--sheet-h, 164px) + 32px); }
   .panel { top: auto; left: 0; right: 0; width: 100%; height: var(--sheet-vh, 56dvh); max-height: 92dvh; border-left: 0; border-top: 3px solid var(--ink); box-shadow: 0 -5px 0 var(--ink); transition: height .22s cubic-bezier(.2,.8,.2,1), transform .22s; }
   .panel.closed { transform: translateY(100%); }
@@ -271,5 +277,12 @@ a { color: inherit; }
   .toast { bottom: calc(var(--sheet-h, 164px) + 24px); }
   .two { grid-template-columns: 1fr; }
 }
-@media (min-width: 900px) and (max-width: 1180px) { :root { --panel-w: 380px; } .cut { font-size: 10px; } }
+@media (min-width: 900px) and (max-width: 1180px) {
+  :root { --panel-w: 380px; --top-h: 120px; }
+  .cut { font-size: 10px; }
+  .topbar { flex-wrap: wrap; }
+  .topbar .search { order: 3; flex-basis: 100%; }
+  .topbar #openSuggest .action-label { display: none; }
+  .topbar #openHow { margin-left: auto; }
+}
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

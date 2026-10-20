@@ -42,13 +42,19 @@ function setVote(pid, val) {
 function toggleSave(pid) {
   if (S.saved[pid]) delete S.saved[pid]; else S.saved[pid] = 1; lsSet("kolla.saved", S.saved);
   refreshOne(pid, '[data-save], [data-act="save"]'); toast(S.saved[pid] ? "Saved" : "Removed from saved");
+  if (S.tab === "saved") {
+    var scroll = $("list").scrollTop;
+    if (!S.saved[pid] && S.sel === pid) closeDetail();
+    renderAll(); $("list").scrollTop = scroll;
+    if (!S.saved[pid]) $("clearFilters").focus();
+  }
 }
 function sharePlace(it) {
-  var url = gmUrl(it), text = it.name + " · " + it.area + ", Stockholm";
+  var url = it.local ? gmUrl(it) : placeUrl(it), text = it.name + " · " + it.area + ", Stockholm";
   if (navigator.share) { navigator.share({ title: it.name, text: text, url: url }).catch(function () {}); return; }
-  var full = text + "\n" + url;
+  var full = url;
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(full).then(function () { toast("Link copied"); }, function () { toast("Couldn't copy. Use the Maps button to share."); });
-  else toast("Couldn't copy. Use the Maps button to share.");
+  else toast("Copy this page's address to share this place.");
 }
 
 /* ===== MODALS ===== */
@@ -85,7 +91,11 @@ function onName() {
   if (v.length > 2) { a.hidden = false; a.href = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(v + ", Stockholm"); } else a.hidden = true;
   if (d) { dupePid = d.pid; var t = tally(d.pid); $("dupe").hidden = false; $("dupeT").innerHTML = "<b>" + esc(d.name) + "</b> is already here with " + t.go + " go and " + t.skip + " skip. Back it instead of adding a copy."; } else { dupePid = null; $("dupe").hidden = true; }
 }
-function showErr(id, m) { var e = $(id); e.textContent = m || ""; e.hidden = !m; }
+function showErr(id, m) {
+  var e = $(id); e.textContent = m || ""; e.hidden = !m;
+  var field = $({ eName: "fName", eWhy: "fWhy", eLink: "fLink", eCut: "cutPick" }[id]);
+  if (field) { field.setAttribute("aria-invalid", String(!!m)); field.setAttribute("aria-describedby", id); }
+}
 function validate() {
   var ok = true, name = $("fName").value.trim(), why = $("fWhy").value.trim(), link = $("fLink").value.trim();
   ["eName", "eWhy", "eLink", "eCut"].forEach(function (i) { showErr(i, ""); });
@@ -102,7 +112,7 @@ function bumpN() { lsSet("kolla.rate", { d: new Date().toISOString().slice(0, 10
 function resetForm() { $("form").reset(); formCuts = []; renderCutPick(); $("cnt").textContent = "0/280"; $("dupe").hidden = true; $("findMaps").hidden = true; ["eName", "eWhy", "eLink", "eCut"].forEach(function (i) { showErr(i, ""); }); }
 function submitForm(ev) {
   ev.preventDefault();
-  if (!validate()) { var f = $("form").querySelector(".err:not([hidden])"); if (f) f.scrollIntoView({ block: "center" }); return; }
+  if (!validate()) { var f = $("form").querySelector('[aria-invalid="true"]'); if (f) { (f.matches("input,textarea") ? f : f.querySelector("button")).focus(); f.scrollIntoView({ block: "center" }); } return; }
   if (todayN() >= 5) { showErr("eName", "That's 5 for today. Back a few others for now."); return; }
   var rec = { name: $("fName").value.trim(), cuts: formCuts.slice(), area: $("fArea").value, why: $("fWhy").value.trim(), get: $("fGet").value.trim(), skip: $("fSkip").value.trim(), link: cleanMapsUrl($("fLink").value) || "", owner: $("fOwn").checked, ts: Date.now(), by: S.uid || "" };
   var btn = $("submitBtn"); btn.disabled = true; btn.textContent = "Suggesting…";
@@ -191,7 +201,7 @@ function init() {
   /* map controls */
   $("zin").addEventListener("click", function () { zoomAt(mapEl.clientWidth / 2, mapEl.clientHeight / 2, 1.5); });
   $("zout").addEventListener("click", function () { zoomAt(mapEl.clientWidth / 2, mapEl.clientHeight / 2, 1 / 1.5); });
-  $("zfit").addEventListener("click", function () { flyTo(defaultView()); });
+  $("zfit").addEventListener("click", function () { closeDetail(); fitVisible(); });
   $("brand").addEventListener("click", function (e) { e.preventDefault(); closeDetail(); S.cut = null; S.tab = "all"; renderAll(); flyTo(defaultView()); });
   pinsEl.addEventListener("click", function (e) { var b = e.target.closest("[data-pid]"); if (b) selectPin(b.getAttribute("data-pid")); });
 
@@ -207,9 +217,10 @@ function init() {
   $("opener").addEventListener("keydown", function () {});
 
   /* tabs, cuts, suggestions, sort */
-  document.querySelectorAll("[data-tab]").forEach(function (b) { b.addEventListener("click", function () { S.tab = b.getAttribute("data-tab"); renderAll(); fitVisible(); }); });
+  $("clearFilters").addEventListener("click", function () { S.cut = null; S.tab = "all"; closeDetail(); renderAll(); fitVisible(); });
+  document.querySelectorAll("[data-tab]").forEach(function (b) { b.addEventListener("click", function () { S.tab = b.getAttribute("data-tab"); if (S.sel && !tabOk(itemByPid(S.sel))) closeDetail(); renderAll(); fitVisible(); }); });
   $("cuts").addEventListener("click", function (e) { var b = e.target.closest("[data-cut]"); if (!b) return; var id = b.getAttribute("data-cut"); S.cut = S.cut === id ? null : id; if (S.sel) { var it = itemByPid(S.sel); if (it && S.cut && it.cuts.indexOf(S.cut) < 0) { S.sel = null; renderDetail(); } } renderAll(); fitVisible(); if (isMobile() && S.cut && S.sheet === "full") setSheet("half"); });
-  $("sugBtn").addEventListener("click", function () { S.showSug = !S.showSug; renderAll(); });
+  $("sugBtn").addEventListener("click", function () { S.showSug = !S.showSug; if (!S.showSug && S.sel && itemByPid(S.sel).kind !== "p") closeDetail(); renderAll(); });
   $("sort").addEventListener("change", function (e) { S.sort = e.target.value; renderList(); });
 
   /* list + detail delegation */
@@ -258,10 +269,11 @@ function init() {
     var hs = sheetHeights(), h = panel.offsetHeight, best = "peek", bd = 1e9; Object.keys(hs).forEach(function (k) { var d = Math.abs(hs[k] - h); if (d < bd) { bd = d; best = k; } }); setSheet(best);
   }
   [$("grip"), document.querySelector(".panel-head")].forEach(function (el) { el.addEventListener("pointerdown", dStart); el.addEventListener("pointermove", dMove); el.addEventListener("pointerup", dEnd); el.addEventListener("pointercancel", dEnd); });
+  $("grip").addEventListener("click", function (e) { if (e.detail === 0 && isMobile()) setSheet(S.sheet === "peek" ? "half" : S.sheet === "half" ? "full" : "peek"); });
   window.addEventListener("resize", function () { if (isMobile()) setSheet(S.sheet, true); else setSheet("peek"); });
 
   /* deep link */
-  var m = /#p=([^&]+)/.exec(location.hash || ""); if (m) { var pid = decodeURIComponent(m[1]); setTimeout(function () { selectPin(pid); }, 60); }
+  var m = /#p=([^&]+)/.exec(location.hash || ""); if (m) { try { var pid = decodeURIComponent(m[1]); setTimeout(function () { selectPin(pid); }, 60); } catch (e) {} }
   srvInit();
   initStore();
 }

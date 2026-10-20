@@ -67,7 +67,7 @@ function isMobile() { return window.matchMedia("(max-width: 899px)").matches; }
 function sheetPx() { var p = document.getElementById("panel"); return p && !p.classList.contains("closed") ? p.offsetHeight : 0; }
 function usable() {
   var W = mapEl.clientWidth, H = mapEl.clientHeight, mob = isMobile(), panel = document.getElementById("panel");
-  var top = mob ? 132 : 84, right = 12, bottom = 12;
+  var top = Math.max(84, document.getElementById("topbar").getBoundingClientRect().bottom + 12), right = 12, bottom = 12;
   if (!mob && panel && !panel.classList.contains("closed")) right = panel.offsetWidth + 12;
   if (mob) bottom = (document.getElementById("detail").hidden ? sheetPx() : 0) + 10;
   return { x: 12, y: top, w: Math.max(120, W - 12 - right), h: Math.max(120, H - top - bottom), W: W, H: H };
@@ -207,6 +207,12 @@ function decorateMap(map) {
   layers.forEach(function (l) {
     if (l.type === "background") map.setPaintProperty(l.id, "background-color", dark ? "#211f27" : "#f3eedb");
     if (l.type === "fill" && l["source-layer"] === "water") map.setPaintProperty(l.id, "fill-color", dark ? "#163e4a" : "#a6dce0");
+    if (l.type === "fill" && l["source-layer"] === "building") map.setPaintProperty(l.id, "fill-color", dark ? "#424652" : "#d4cdbb");
+    if (dark && l.type === "line" && l["source-layer"] === "transportation") map.setPaintProperty(l.id, "line-color", /casing/.test(l.id) ? "#252831" : "#575a69");
+    if (dark && l.type === "symbol" && l.layout && l.layout["text-field"]) {
+      map.setPaintProperty(l.id, "text-color", "#c4c7d2");
+      map.setPaintProperty(l.id, "text-halo-color", "#211f27");
+    }
     if (l.type === "fill-extrusion") map.setLayoutProperty(l.id, "visibility", "none");
   });
   if (!building) return;
@@ -324,6 +330,7 @@ initMap = function (frameCb) {
 applyView = function () {
   if (!vectorMap) return flatMap.apply();
   vectorMap.resize();
+  if (document.getElementById("detail").hidden) vectorMap.setPadding(mapPadding());
   if (onFrame) onFrame();
 };
 worldToScreen = function (x, y) {

@@ -14,7 +14,7 @@ function toast(m) { var t = $("toast"); t.textContent = m; t.classList.add("show
 function areaPos(key, area) { var c = AREA_C[area] || AREA_C["Norrmalm"], h = hash(key); return [c[0] + ((h % 61) - 30) * 0.0001, c[1] + (((h >> 6) % 41) - 20) * 0.00008]; }
 
 /* ---- items ---- */
-function mk(p, kind, pid, i) { var o = {}; for (var k in p) o[k] = p[k]; o.kind = kind; o.pid = pid; o.order = i; o.addedAt = LAUNCH; o.why = kind === "p" ? p.line : p.why; if (kind === "q") o.by = "BITE RATE HQ"; return o; }
+function mk(p, kind, pid, i) { var o = {}; for (var k in p) o[k] = p[k]; o.kind = kind; o.pid = pid; o.order = i; o.addedAt = p.addedAt || LAUNCH; o.why = kind === "p" ? p.line : p.why; if (kind === "q") o.by = "BITE RATE HQ"; return o; }
 function allItems() {
   var out = [], seen = {};
   PLACES.forEach(function (p, i) { out.push(mk(p, "p", "p_" + p.id, i)); });
@@ -40,6 +40,10 @@ function visible() {
 function gmQ(it) { return it.name + ", " + ((it.ver === 1 && it.addr) ? it.addr : it.area) + ", Stockholm"; }
 function gmUrl(it) { return it.link || "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(gmQ(it)); }
 function gmDir(it) { return "https://www.google.com/maps/dir/?api=1&travelmode=transit&destination=" + encodeURIComponent(gmQ(it)); }
+function placeUrl(it) { return location.origin + location.pathname + location.search + "#p=" + encodeURIComponent(it.pid); }
+function websiteUrl(it) {
+  try { var u = new URL(it.website); return u.protocol === "https:" && !u.username && !u.password ? u.href : ""; } catch (e) { return ""; }
+}
 function cleanMapsUrl(s) {
   s = String(s || "").trim(); if (!s) return "";
   var u; try { u = new URL(/^https?:\/\//i.test(s) ? s : "https://" + s); } catch (e) { return null; }
@@ -102,6 +106,7 @@ function detailHtml(it) {
     '<a class="btn cyan" target="_blank" rel="noopener" href="' + esc(gmDir(it)) + '">' + ic("route") + 'Route ↗</a>' +
     '<button class="btn sqb" type="button" data-act="save" aria-pressed="' + save + '" aria-label="' + (save ? "Remove from saved" : "Save this place") + '">' + ic("mark") + "</button>" +
     '<button class="btn sqb" type="button" data-act="share" aria-label="Share this place">' + ic("share") + "</button></div>" +
+    (websiteUrl(it) ? '<p class="note"><a href="' + esc(websiteUrl(it)) + '" target="_blank" rel="noopener">Venue website · menu & booking ↗</a></p>' : "") +
     '<p class="note">Pin position is approximate. Open Maps for the exact spot, and check hours before you go.</p>';
 }
 
@@ -121,7 +126,8 @@ function renderTabs() {
 }
 function renderList() {
   var list = visible(); $("count").textContent = list.length + (list.length === 1 ? " place" : " places") + (S.cut ? " · " + CUT_BY[S.cut].label : "");
-  var msg = S.tab === "saved" ? "Nothing saved yet. Tap Save on a place you like." : S.cut ? "No places in this cut yet. Suggest one." : "Nothing here.";
+  $("clearFilters").hidden = !S.cut && S.tab === "all";
+  var msg = S.cut ? "No matching places with these filters. Clear filters to explore more." : S.tab === "saved" ? "Nothing saved yet. Tap Save on a place you like." : S.tab === "new" ? "No recent additions. Check All for the full collection." : "Nothing here.";
   $("list").innerHTML = list.length ? list.map(cardHtml).join("") : '<li class="empty"><span class="h-md">Nothing here yet</span><span>' + msg + '</span><button class="btn pink" type="button" data-act="suggest">Suggest a place</button></li>';
 }
 function renderDetail() {
@@ -177,6 +183,7 @@ function renderAll() { renderChips(); renderTabs(); renderList(); renderPins(); 
 /* ---- selection ---- */
 function selectPin(pid, fly) {
   var it = itemByPid(pid); if (!it) return;
+  if (!tabOk(it)) S.tab = "all";
   if (it.kind !== "p" && !S.showSug) S.showSug = true;
   if (S.cut && it.cuts.indexOf(S.cut) < 0) S.cut = null;
   S.sel = pid; renderDetail(); renderAll();
@@ -186,13 +193,14 @@ function selectPin(pid, fly) {
 }
 function closeDetail() {
   S.sel = null; renderDetail(); renderPins(); var c = $("list").querySelector(".card.on"); if (c) c.classList.remove("on");
+  if (vectorMap) vectorMap.easeTo({ padding: mapPadding(), duration: mapDuration() });
   try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
 }
 function fitVisible() {
   var items = visible(); if (!items.length) return;
   var la = items.map(function (i) { return i.lat; }), ln = items.map(function (i) { return i.lng; });
   var b = [Math.min.apply(null, ln) - 0.004, Math.min.apply(null, la) - 0.002, Math.max.apply(null, ln) + 0.004, Math.max.apply(null, la) + 0.002];
-  var t = fitBounds(b); t.s = Math.min(t.s, 5); if (items.length > 1) flyTo(fitBounds(b)); else flyTo(fitBounds([ln[0] - 0.006, la[0] - 0.003, ln[0] + 0.006, la[0] + 0.003]));
+  if (items.length > 1) flyTo(fitBounds(b)); else flyTo(fitBounds([ln[0] - 0.006, la[0] - 0.003, ln[0] + 0.006, la[0] + 0.003]));
 }
 
 /* ---- mobile sheet ---- */
