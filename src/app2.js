@@ -11,10 +11,12 @@ function syncThemeButton() {
     : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square"><path d="M20.2 15.1A8.5 8.5 0 0 1 8.9 3.8 8.6 8.6 0 1 0 20.2 15.1z"/></svg>';
 }
 function syncMapViewButton() {
-  var b = $("viewBtn"), tilted = $("map").classList.contains("is-3d");
+  var b = $("viewBtn"), tilted = !!vectorMap && $("map").classList.contains("is-3d");
+  b.disabled = !vectorMap;
   b.setAttribute("aria-pressed", String(tilted));
-  b.setAttribute("aria-label", tilted ? "Switch to flat 2D map" : "Switch to raised 3D map");
-  b.title = tilted ? "Raised 3D map · click for flat view" : "Flat 2D map · click for raised view";
+  b.setAttribute("aria-label", !vectorMap ? "3D map unavailable" : tilted ? "Switch to flat 2D map" : "Show 3D buildings");
+  b.title = !vectorMap ? "3D buildings need the street map to load" : tilted ? "3D buildings · click for flat view" : "Show 3D buildings";
+  b.textContent = tilted ? "2D" : "3D";
 }
 function refreshOne(pid, focusSel) {
   var it = itemByPid(pid); if (!it) return; it._t = tally(pid);
@@ -181,7 +183,6 @@ function init() {
   $("fArea").innerHTML = AREAS.map(function (a) { return '<option value="' + esc(a) + '">' + esc(a) + "</option>"; }).join("");
   renderCutPick();
   initMap(framePins);
-  mapEl.classList.toggle("is-3d", lsGet("kolla.map3d", true) !== false);
   syncMapViewButton();
   renderAll(); setSheet("peek", true);
   requestAnimationFrame(function () { setSheet("peek", true); flyTo(defaultView(), true); });
@@ -195,10 +196,10 @@ function init() {
   pinsEl.addEventListener("click", function (e) { var b = e.target.closest("[data-pid]"); if (b) selectPin(b.getAttribute("data-pid")); });
 
   /* theme + panel */
-  $("themeBtn").addEventListener("click", function () { var r = document.documentElement, n = effectiveTheme() === "dark" ? "light" : "dark"; r.setAttribute("data-theme", n); lsSet("kolla.theme", n); syncThemeButton(); });
-  $("viewBtn").addEventListener("click", function () { mapEl.classList.toggle("is-3d"); lsSet("kolla.map3d", mapEl.classList.contains("is-3d")); syncMapViewButton(); });
+  $("themeBtn").addEventListener("click", function () { var r = document.documentElement, n = effectiveTheme() === "dark" ? "light" : "dark"; r.setAttribute("data-theme", n); lsSet("kolla.theme", n); syncThemeButton(); syncMapTheme(); });
+  $("viewBtn").addEventListener("click", function () { if (!vectorMap) return; mapEl.classList.toggle("is-3d"); lsSet("kolla.map3d", mapEl.classList.contains("is-3d")); syncMapViewButton(); syncVectorView(true); });
   var scheme = window.matchMedia("(prefers-color-scheme: dark)");
-  if (scheme.addEventListener) scheme.addEventListener("change", function () { if (!lsGet("kolla.theme", null)) syncThemeButton(); });
+  if (scheme.addEventListener) scheme.addEventListener("change", function () { if (!lsGet("kolla.theme", null)) { syncThemeButton(); syncMapTheme(); } });
   function togglePanel(open) { var p = $("panel"), closed = !open; p.classList.toggle("closed", closed); $("app").classList.toggle("panel-closed", closed); setTimeout(function () { schedule(); }, 240); }
   $("collapse").addEventListener("click", function () { togglePanel(false); });
   $("opener").addEventListener("click", function () { togglePanel(true); });

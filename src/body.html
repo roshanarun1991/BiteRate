@@ -13,7 +13,11 @@
     </svg>
     <div id="pins"></div>
   </div>
-  <div class="attrib">Schematic map · pins approximate · Maps link is the truth</div>
+  <div class="attrib">
+    <span id="mapFallbackLabel">Simple map · pins approximate</span>
+    <span id="mapCredits" hidden><a href="https://openfreemap.org/" target="_blank" rel="noopener">OpenFreeMap</a> · <a href="https://openmaptiles.org/" target="_blank" rel="noopener">© OpenMapTiles</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a></span>
+  </div>
+  <div class="mapnotice" id="mapNotice" role="status" hidden><span id="mapNoticeText"></span> <button type="button" id="mapRetry" hidden>Retry map</button></div>
 
   <header class="topbar" id="topbar">
     <a class="brand" href="#" id="brand" aria-label="Bite Rate Stockholm, reset the map"><img class="logo" src="{{LOGO}}" alt="" width="46" height="46"><span class="bt"><b>BITE RATE</b><small>STOCKHOLM</small></span></a>
@@ -110,7 +114,7 @@
         <input type="file" id="importFile" accept="application/json,.json">
         <span class="note" id="importMsg" style="margin:0" role="status"></span>
       </div>
-      <p class="note">The starter picks are an editor's list, not a ranking, and votes start at zero. The map is a hand-traced sketch, so pins are approximate; the Google Maps link is the exact location.</p>
+      <p class="note">The starter picks are an editor's list, and votes start at zero. Explore real streets and 3D buildings with OpenFreeMap. Drag to move, scroll to zoom, or right-drag to rotate. Tap 2D for a flat view. Building heights depend on available map data; place pins may be approximate. Use the Google Maps link to confirm the entrance and opening hours.</p>
     </div>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

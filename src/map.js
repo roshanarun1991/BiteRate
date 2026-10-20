@@ -127,12 +127,14 @@ function initMap(frameCb) {
   var ptrs = {}, last = null, moved = 0, startPinch = 0;
   function pts() { return Object.keys(ptrs).map(function (k) { return ptrs[k]; }); }
   mapEl.addEventListener("pointerdown", function (e) {
+    if (vectorMap || e.target.closest("#streetMap")) return;
     if (e.target.closest && e.target.closest("button, .plabel, a")) return;
     mapEl.setPointerCapture && mapEl.setPointerCapture(e.pointerId); ptrs[e.pointerId] = { x: e.clientX, y: e.clientY };
     moved = 0; mapEl.classList.add("drag"); if (anim) { cancelAnimationFrame(anim); anim = 0; }
     var p = pts(); last = p.length === 1 ? { x: p[0].x, y: p[0].y } : null; startPinch = p.length === 2 ? Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) : 0;
   });
   mapEl.addEventListener("pointermove", function (e) {
+    if (vectorMap) return;
     if (!ptrs[e.pointerId]) return;
     var prev = ptrs[e.pointerId]; ptrs[e.pointerId] = { x: e.clientX, y: e.clientY }; var p = pts();
     var rect = mapEl.getBoundingClientRect();
@@ -143,9 +145,10 @@ function initMap(frameCb) {
   });
   function up(e) { delete ptrs[e.pointerId]; var p = pts(); last = p.length === 1 ? { x: p[0].x, y: p[0].y } : null; startPinch = 0; if (!p.length) mapEl.classList.remove("drag"); }
   mapEl.addEventListener("pointerup", up); mapEl.addEventListener("pointercancel", up);
-  mapEl.addEventListener("wheel", function (e) { e.preventDefault(); var r = mapEl.getBoundingClientRect(); var dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY; zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-dy * 0.0016)); }, { passive: false });
-  mapEl.addEventListener("dblclick", function (e) { if (e.target.closest("button, .plabel")) return; var r = mapEl.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, 1.8); });
+  mapEl.addEventListener("wheel", function (e) { if (vectorMap) return; e.preventDefault(); var r = mapEl.getBoundingClientRect(); var dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY; zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-dy * 0.0016)); }, { passive: false });
+  mapEl.addEventListener("dblclick", function (e) { if (vectorMap || e.target.closest("button, .plabel")) return; var r = mapEl.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, 1.8); });
   mapEl.addEventListener("keydown", function (e) {
+    if (vectorMap) return;
     if (e.target !== mapEl) return; var st = 60, k = e.key, W = mapEl.clientWidth, H = mapEl.clientHeight;
     if (k === "ArrowLeft") M.tx += st; else if (k === "ArrowRight") M.tx -= st; else if (k === "ArrowUp") M.ty += st; else if (k === "ArrowDown") M.ty -= st;
     else if (k === "+" || k === "=") { zoomAt(W / 2, H / 2, 1.4); e.preventDefault(); return; } else if (k === "-" || k === "_") { zoomAt(W / 2, H / 2, 1 / 1.4); e.preventDefault(); return; } else return;
@@ -155,3 +158,196 @@ function initMap(frameCb) {
   mapEl.wasDrag = function () { return moved > 6; };
 }
 function defaultView() { return isMobile() ? fitBounds([18.045, 59.3150, 18.105, 59.3400]) : fitBounds([18.030, 59.3085, 18.125, 59.3470]); }
+
+/* Real streets and buildings. The schematic remains available if WebGL or the
+   network is unavailable. No account, API key or billable map service is used. */
+var vectorMap = null, vectorPending = null, vectorTimer = null, mapLibraryPromise = null;
+var flatMap = {
+  init: initMap, apply: applyView, screen: worldToScreen, zoom: zoomAt,
+  bounds: fitBounds, fly: flyTo, focus: focusOn, home: defaultView
+};
+function mapDuration() { return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 500; }
+function mapPadding() {
+  var u = usable();
+  return { top: u.y + 16, bottom: u.H - u.y - u.h + 36, left: u.x + 24, right: u.W - u.x - u.w + 24 };
+}
+function mapNotice(text, retry) {
+  document.getElementById("mapNoticeText").textContent = text;
+  document.getElementById("mapRetry").hidden = !retry;
+  document.getElementById("mapNotice").hidden = !text;
+}
+function mapAttribution(real) {
+  document.getElementById("mapCredits").hidden = !real;
+  document.getElementById("mapFallbackLabel").hidden = real;
+}
+function loadMapLibrary() {
+  if (window.maplibregl) return Promise.resolve();
+  if (mapLibraryPromise) return mapLibraryPromise;
+  mapLibraryPromise = new Promise(function (resolve, reject) {
+    var css = document.createElement("link");
+    css.rel = "stylesheet"; css.href = "https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css";
+    document.head.appendChild(css);
+    var script = document.createElement("script");
+    script.src = "https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.js";
+    script.async = true;
+    script.onload = function () { window.maplibregl ? resolve() : reject(new Error("Map library unavailable")); };
+    script.onerror = function () { mapLibraryPromise = null; script.remove(); reject(new Error("Map library unavailable")); };
+    document.head.appendChild(script);
+  });
+  return mapLibraryPromise;
+}
+function mapStyleUrl() {
+  return "https://tiles.openfreemap.org/styles/" + (effectiveTheme() === "dark" ? "dark" : "liberty");
+}
+function decorateMap(map) {
+  var layers = map.getStyle().layers || [], dark = effectiveTheme() === "dark";
+  var building = layers.find(function (l) { return l["source-layer"] === "building"; });
+  var labels = layers.find(function (l) { return l.type === "symbol" && l.layout && l.layout["text-field"]; });
+  // Keep the same retro palette while retaining real roads and neighbourhoods.
+  layers.forEach(function (l) {
+    if (l.type === "background") map.setPaintProperty(l.id, "background-color", dark ? "#211f27" : "#f3eedb");
+    if (l.type === "fill" && l["source-layer"] === "water") map.setPaintProperty(l.id, "fill-color", dark ? "#163e4a" : "#a6dce0");
+    if (l.type === "fill-extrusion") map.setLayoutProperty(l.id, "visibility", "none");
+  });
+  if (!building) return;
+  if (!map.getLayer("biterate-buildings")) map.addLayer({
+    id: "biterate-buildings", type: "fill-extrusion",
+    source: building.source, "source-layer": "building", minzoom: 13,
+    filter: ["!=", ["get", "hide_3d"], true],
+    paint: {
+      "fill-extrusion-color": dark ? "#626574" : "#c7c4b7",
+      "fill-extrusion-height": ["coalesce", ["get", "render_height"], 6],
+      "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+      "fill-extrusion-opacity": 1
+    }
+  }, labels && labels.id);
+  map.setLayoutProperty("biterate-buildings", "visibility", mapEl.classList.contains("is-3d") ? "visible" : "none");
+}
+function syncMapTheme() {
+  var map = vectorMap || vectorPending;
+  if (map) map.setStyle(mapStyleUrl());
+}
+function syncVectorView(zoomIn) {
+  if (!vectorMap) return;
+  var tilted = mapEl.classList.contains("is-3d");
+  var options = { pitch: tilted ? 55 : 0, bearing: tilted ? -18 : 0, duration: mapDuration() };
+  if (tilted && zoomIn) options.zoom = Math.max(vectorMap.getZoom(), 15.5);
+  if (vectorMap.getLayer("biterate-buildings")) vectorMap.setLayoutProperty("biterate-buildings", "visibility", tilted ? "visible" : "none");
+  vectorMap.easeTo(options);
+}
+function stopVectorMap(message) {
+  clearTimeout(vectorTimer);
+  var old = vectorMap || vectorPending;
+  vectorMap = null; vectorPending = null;
+  if (old) old.remove();
+  var host = document.getElementById("streetMap"); if (host) host.remove();
+  mapEl.classList.remove("real-map", "is-3d");
+  mapAttribution(false);
+  flatMap.fly(flatMap.home(), true);
+  syncMapViewButton();
+  mapNotice(message, true);
+}
+function startVectorMap() {
+  if (vectorMap || vectorPending) return;
+  mapNotice("Loading streets and 3D buildings…", false);
+  document.getElementById("viewBtn").disabled = true;
+  var attempt = {};
+  startVectorMap.attempt = attempt;
+  vectorTimer = setTimeout(function () {
+    if (startVectorMap.attempt !== attempt) return;
+    startVectorMap.attempt = null;
+    stopVectorMap("Street map unavailable. Showing the simple map.", true);
+  }, 25000);
+  loadMapLibrary().then(function () {
+    if (startVectorMap.attempt !== attempt) return;
+    var host = document.createElement("div"); host.id = "streetMap"; mapEl.prepend(host);
+    var tilted = lsGet("kolla.map3d", true) !== false;
+    mapEl.classList.toggle("is-3d", tilted);
+    var map = new window.maplibregl.Map({
+      container: host, style: mapStyleUrl(), center: [18.066, 59.334],
+      zoom: tilted ? 15.5 : 13.5, pitch: tilted ? 55 : 0, bearing: tilted ? -18 : 0,
+      minZoom: 10, maxZoom: 19, maxPitch: 65, renderWorldCopies: false,
+      maxBounds: [[17.8, 59.2], [18.35, 59.5]], attributionControl: false,
+      canvasContextAttributes: { antialias: true }
+    });
+    vectorPending = map;
+    map.on("style.load", function () {
+      if (map !== vectorMap && map !== vectorPending) return;
+      decorateMap(map);
+    });
+    map.on("load", function () {
+      if (startVectorMap.attempt !== attempt) return;
+      clearTimeout(vectorTimer);
+      vectorMap = map; vectorPending = null;
+      mapEl.classList.add("real-map");
+      mapAttribution(true); mapNotice("", false);
+      document.getElementById("viewBtn").disabled = false;
+      map.setPadding(mapPadding());
+      if (S.sel) { var selected = itemByPid(S.sel); if (selected) focusOn(selected.lng, selected.lat); }
+      syncMapViewButton(); applyView();
+    });
+    map.on("move", function () {
+      if (vectorMap !== map) return;
+      pinsEl.style.setProperty("--ps", Math.min(1, Math.max(0.65, (map.getZoom() - 10) / 5)));
+      if (onFrame) onFrame();
+    });
+    map.on("pitchend", function () {
+      if (vectorMap !== map) return;
+      mapEl.classList.toggle("is-3d", map.getPitch() > 10);
+      lsSet("kolla.map3d", mapEl.classList.contains("is-3d"));
+      if (map.getLayer("biterate-buildings")) map.setLayoutProperty("biterate-buildings", "visibility", mapEl.classList.contains("is-3d") ? "visible" : "none");
+      syncMapViewButton();
+    });
+    map.on("error", function () {
+      if (vectorMap === map) mapNotice("Some map details couldn't load.", true);
+    });
+    map.on("idle", function () { if (vectorMap === map && map.areTilesLoaded()) mapNotice("", false); });
+    map.on("webglcontextlost", function () {
+      startVectorMap.attempt = null;
+      stopVectorMap("3D graphics paused. Showing the simple map.");
+    });
+  }).catch(function () {
+    if (startVectorMap.attempt !== attempt) return;
+    startVectorMap.attempt = null;
+    stopVectorMap("Street map unavailable. Showing the simple map.");
+  });
+}
+initMap = function (frameCb) {
+  flatMap.init(frameCb);
+  document.getElementById("mapRetry").addEventListener("click", function () {
+    stopVectorMap(""); startVectorMap();
+  });
+  // Let the page and its places render before requesting map resources.
+  setTimeout(startVectorMap, 0);
+};
+applyView = function () {
+  if (!vectorMap) return flatMap.apply();
+  vectorMap.resize();
+  if (onFrame) onFrame();
+};
+worldToScreen = function (x, y) {
+  if (!vectorMap) return flatMap.screen(x, y);
+  var p = vectorMap.project([BX + x / KX, BY - y / KY]);
+  return [p.x, p.y];
+};
+zoomAt = function (x, y, factor) {
+  if (!vectorMap) return flatMap.zoom(x, y, factor);
+  vectorMap.easeTo({ zoom: vectorMap.getZoom() + Math.log2(factor), around: vectorMap.unproject([x, y]), duration: mapDuration() });
+};
+fitBounds = function (bounds) { return vectorMap ? { bounds: bounds } : flatMap.bounds(bounds); };
+flyTo = function (target, instant) {
+  if (!vectorMap) return flatMap.fly(target, instant);
+  if (target.bounds) vectorMap.fitBounds([[target.bounds[0], target.bounds[1]], [target.bounds[2], target.bounds[3]]], {
+    padding: mapPadding(), maxZoom: 16, duration: instant ? 0 : mapDuration()
+  });
+};
+focusOn = function (lng, lat, minS) {
+  if (!vectorMap) return flatMap.focus(lng, lat, minS);
+  var padding = mapPadding(), detail = document.getElementById("detail");
+  if (!detail.hidden) {
+    if (isMobile()) padding.bottom = Math.min(mapEl.clientHeight - padding.top - 100, detail.offsetHeight + 24);
+    else padding.bottom = Math.min(mapEl.clientHeight - padding.top - 160, detail.offsetHeight + 24);
+  }
+  vectorMap.easeTo({ center: [lng, lat], zoom: Math.max(vectorMap.getZoom(), 16), padding: padding, duration: mapDuration() });
+};
+defaultView = function () { return vectorMap ? { bounds: [18.030, 59.3085, 18.125, 59.3470] } : flatMap.home(); };
