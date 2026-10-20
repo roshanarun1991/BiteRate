@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Assemble src/* + data/*.json into dist/index.html (one self-contained page)."""
-import base64, json, pathlib, sys
+import json, pathlib, sys
+from urllib.parse import quote
 
 ROOT = pathlib.Path(__file__).parent
 SRC, DATA, DIST = ROOT / "src", ROOT / "data", ROOT / "dist"
@@ -18,7 +19,7 @@ def load_json(name, default):
 
 
 def build():
-    logo = "data:image/png;base64," + base64.b64encode((SRC / "logo.png").read_bytes()).decode()
+    logo = "data:image/svg+xml," + quote('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#FFD928"/><text x="32" y="44" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="34" fill="#161713">BR</text></svg>')
     auto = load_json("places_auto.json", [])
     closed = load_json("closed.json", [])
     data = read("data.js").replace(

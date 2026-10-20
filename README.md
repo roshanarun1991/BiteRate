@@ -23,7 +23,7 @@ The agent writes `data/state.json` on every run, so the repo always has fresh ac
 ## One-time setup (5 minutes)
 
 1. **Pages:** repo Settings → Pages → Source: **GitHub Actions**.
-2. **API key:** create a Google Cloud key with **Places API (New)** enabled. Add a **budget alert and a daily quota cap** in Google Cloud so the bill can never surprise you. Then Settings → Secrets and variables → Actions → New secret `GOOGLE_PLACES_API_KEY`.
+2. **Optional discovery API:** Google Places (New) requires a billing-enabled project and may incur charges. For a free-only setup, leave `GOOGLE_PLACES_API_KEY` unset and add editorial places by hand. Budget alerts are notifications, not spending caps.
 3. Actions tab → "Bite Rate - agent, test, deploy" → Run workflow.
 
 Without the key the site still deploys and works; the agent just skips its checks.
@@ -51,13 +51,14 @@ Without the server the site still works; votes and suggestions stay on each visi
 
 ## What else to know
 
-- The map is a hand-drawn schematic. Pins are approximate. The Google Maps link is the exact location.
+- The map uses MapLibre and OpenFreeMap for real streets and extruded 3D buildings, with day/night styles. No map API key is needed. If map loading fails, the schematic fallback remains usable and offers a retry. Building heights and coverage depend on OpenStreetMap data; venue pins are approximate.
 - The hand-picked places in `src/data.js` are an editor's list, not a ranking.
+- Twelve additions on 2026-10-20 bring the initial collection to 66 places. Their `source`, `website` and `checkedAt` fields record the sources used. Categories are editorial; Viral Food includes photogenic picks and is not a live social-media ranking.
 
 ## Layout
 
 ```
-src/            page source: data.js (cuts + places), map.js, app1.js, shared.js, app2.js, style.css, body.html, logo.png
+src/            page source: data.js (cuts + places), map.js, app1.js, shared.js, app2.js, style.css, body.html
 worker/         Cloudflare Worker for shared votes + its tests
 data/           places_auto.json (agent output), closed.json, state.json, candidates.json, config.json, votes_snapshot.json
 agent/          bite_rate_agent.py + tests (standard library only)
@@ -67,7 +68,11 @@ build.py        src + data -> dist/index.html
 
 Local: `python3 tests/test_site.py && python3 build.py` then open `dist/index.html`.
 
-Add a place by hand: add a line to `PLACES` in `src/data.js` (the tests check ids, areas, cuts and coordinates), or put `{"name": "Place name"}` in `data/candidates.json` and let the agent judge it.
+Add a place by hand: add an entry to `PLACES` in `src/data.js`, including a unique id, name, area, address, approximate coordinates, cuts and short get/skip notes. Add `website`, `source`, `checkedAt` and `addedAt: Date.UTC(year, monthMinusOne, day)` for traceable new picks. Commit the file on GitHub and the site rebuilds automatically. This needs no local computer or Google key.
+
+If discovery is configured, you can alternatively put `{"name": "Place name"}` in `data/candidates.json` for the agent to review.
+
+Browser QA: install Playwright and Chromium, then run `python3 tests/smoke.py` and `python3 tests/smoke_shared.py`. Responsive checks cover 1440, 1280, 900, 390 and 320 pixel widths, all 15 filters, day/night persistence, fallback, search, saved-list removal, votes, sharing, forms and deep links. The shared-server test uses a mock API; it does not imply a live Worker is configured. Real map rendering is checked separately on the deployed site.
 
 ## Honest limits
 
